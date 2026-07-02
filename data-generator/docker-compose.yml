@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Generate data with default settings
+  generate:
+    build: .
+    volumes:
+      - ./output:/app/output
+    command: >
+      python rcm_module.py
+      --output-dir /app/output
+      --format csv
+
+  # Generate large dataset
+  generate-large:
+    build: .
+    volumes:
+      - ./output:/app/output
+    command: >
+      python rcm_module.py
+      --patients 1000
+      --doctors 100
+      --staff 50
+      --facilities 25
+      --encounters 5000
+      --claims 7500
+      --format parquet
+      --output-dir /app/output
+
+  # Run Marimo notebook interactively
+  notebook:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./output:/app/output
+      - ./rcm_generator.py:/app/rcm_generator.py
+    command: >
+      marimo run rcm_generator.py
+      --host 0.0.0.0
+      --port 8080

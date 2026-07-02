@@ -1,0 +1,33 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# Output data
+output/
+*.csv
+*.parquet
+*.json
+*.duckdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Marimo
+.marimo/
+
+# Backup files
+*.bak
+*~

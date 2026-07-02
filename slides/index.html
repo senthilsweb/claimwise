@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthcare RCM Analytics - Data Lakehouse Architecture</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Iconify -->
+  <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+
+  <!-- Reveal.js CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+
+  <style>
+    :root {
+      --color-navy: #0d1b2a;
+      --color-dark: #102a43;
+      --color-blue: #1e3a5f;
+      --color-accent: #2563eb;
+      --color-green: #059669;
+      --color-amber: #d97706;
+      --color-purple: #7c3aed;
+      --color-cyan: #0891b2;
+      --color-red: #dc2626;
+      --color-white: #ffffff;
+      --color-text-primary: #0f172a;
+      --color-text-secondary: #475569;
+      --color-text-muted: #64748b;
+      --color-border: #e2e8f0;
+      --color-border-light: #f1f5f9;
+      --color-mssql: #CC2927;
+      --color-oracle: #F80000;
+      --color-s3: #569A31;
+      --color-snowflake: #29B5E8;
+      --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    body, html { background: var(--color-white) !important; }
+    .reveal-viewport { background: var(--color-white); }
+
+    .reveal {
+      font-family: var(--font-primary);
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--color-text-primary);
+    }
+
+    .reveal .slides { text-align: left; }
+    .reveal .slides section {
+      padding: 28px 45px;
+      box-sizing: border-box;
+      height: 100%;
+      background: var(--color-white);
+    }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.4rem 0;
+      color: var(--color-text-primary);
+    }
+
+    .reveal h1 { font-size: 2em; }
+    .reveal h2 { font-size: 1.4em; }
+    .reveal h3 { font-size: 0.95em; font-weight: 600; }
+
+    .reveal p { margin: 0 0 0.5rem 0; line-height: 1.5; color: var(--color-text-secondary); }
+    .reveal ul, .reveal ol { margin: 0 0 0.5rem 0; padding-left: 1.4em; }
+    .reveal li { margin-bottom: 3px; color: var(--color-text-secondary); line-height: 1.4; font-size: 0.85em; }
+
+    .label {
+      font-size: 0.5em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--color-accent);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .subtitle { font-size: 0.75em; color: var(--color-text-muted); }
+    .highlight-blue { color: var(--color-accent); font-weight: 600; }
+    .highlight-red { color: var(--color-red); font-weight: 600; }
+    .highlight-green { color: var(--color-green); font-weight: 600; }
+
+    .columns { display: flex; gap: 1rem; align-items: stretch; }
+    .columns-2 > * { flex: 1; }
+    .columns-3 > * { flex: 1; }
+    .row { display: flex; gap: 0.75rem; align-items: center; }
+    .center { text-align: center; }
+
+    .card {
+      background: var(--color-border-light);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+    }
+
+    .card-highlight {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(8, 145, 178, 0.05) 100%);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.5em;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-outline {
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-text-secondary);
+    }
+
+    .badge-purple { background: rgba(124, 58, 237, 0.1); color: var(--color-purple); border: 1px solid rgba(124, 58, 237, 0.2); }
+    .badge-green { background: rgba(5, 150, 105, 0.1); color: var(--color-green); border: 1px solid rgba(5, 150, 105, 0.2); }
+    .badge-amber { background: rgba(217, 119, 6, 0.1); color: var(--color-amber); border: 1px solid rgba(217, 119, 6, 0.2); }
+
+    .callout {
+      background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(8, 145, 178, 0.05) 100%);
+      border: 1px solid rgba(5, 150, 105, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+    }
+    .callout h4 { color: var(--color-green); font-size: 0.75em; margin: 0 0 2px 0; }
+    .callout p { font-size: 0.65em; margin: 0; }
+
+    .callout-blue {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(8, 145, 178, 0.05) 100%);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+    }
+    .callout-blue h4 { color: var(--color-accent); }
+
+    .slide-footer {
+      position: absolute;
+      bottom: 18px;
+      left: 45px;
+      right: 45px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.5em;
+      color: var(--color-text-muted);
+    }
+
+    .title-slide {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .reveal .slide-number {
+      font-family: var(--font-primary);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      background: transparent;
+    }
+
+    .story-text { font-size: 0.75em; line-height: 1.55; color: var(--color-text-secondary); }
+
+    /* ==========================================
+       SOURCE SYSTEM DIAGRAM
+       ========================================== */
+    .source-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      padding: 1rem;
+    }
+
+    .source-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .source-card {
+      width: 140px;
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      text-align: center;
+      color: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .source-card.mssql { background: linear-gradient(135deg, #CC2927 0%, #a82220 100%); }
+    .source-card.oracle { background: linear-gradient(135deg, #F80000 0%, #c60000 100%); }
+    .source-card.s3 { background: linear-gradient(135deg, #FF9900 0%, #ec7211 100%); }
+
+    .source-card .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .source-card h4 { margin: 0; font-size: 0.75em; font-weight: 600; }
+    .source-card p { margin: 0; font-size: 0.6em; opacity: 0.9; }
+
+    .arrow-connector {
+      display: flex;
+      align-items: center;
+      color: var(--color-text-muted);
+    }
+
+    .arrow-line {
+      width: 60px;
+      height: 2px;
+      background: repeating-linear-gradient(90deg, #94a3b8 0, #94a3b8 8px, transparent 8px, transparent 12px);
+    }
+
+    .arrow-head {
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 10px solid #94a3b8;
+    }
+
+    /* ==========================================
+       PIPELINE FLOW
+       ========================================== */
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 0;
+      flex-wrap: nowrap;
+    }
+
+    .pipeline-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      min-width: 80px;
+    }
+
+    .pipeline-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    }
+
+    .pipeline-icon.s3 { background: linear-gradient(135deg, #569A31 0%, #3d7a1f 100%); }
+    .pipeline-icon.snowflake { background: linear-gradient(135deg, #29B5E8 0%, #1a8fc2 100%); }
+    .pipeline-icon.dashboard { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+
+    .pipeline-label {
+      font-size: 0.6em;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      text-align: center;
+    }
+
+    .pipeline-arrow {
+      color: #94a3b8;
+      font-size: 1.2rem;
+    }
+
+    .marts-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
+    .marts-row {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .mart-mini {
+      width: 60px;
+      padding: 0.35rem;
+      background: linear-gradient(135deg, #29B5E8 0%, #1a8fc2 100%);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      color: white;
+      font-size: 0.5em;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(41, 181, 232, 0.3);
+    }
+
+    /* ==========================================
+       DATA MODEL TABLES
+       ========================================== */
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+
+    .model-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+    }
+
+    .model-table {
+      background: #1e293b;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 0.55em;
+    }
+
+    .model-table-header {
+      background: #334155;
+      padding: 0.4rem 0.5rem;
+      color: #f1f5f9;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .model-table-header .iconify { color: #60a5fa; }
+
+    .model-table-body {
+      padding: 0.3rem 0.5rem;
+    }
+
+    .model-field {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      color: #e2e8f0;
+    }
+
+    .model-field .name { color: #fbbf24; }
+    .model-field .type { color: #94a3b8; font-size: 0.9em; }
+    .model-field .pk { color: #f87171; font-weight: 600; }
+
+    /* ==========================================
+       STAR SCHEMA
+       ========================================== */
+    .star-schema {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .schema-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .dim-table, .fact-table {
+      background: #1e293b;
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.6rem;
+      min-width: 100px;
+      font-family: var(--font-mono);
+      font-size: 0.5em;
+    }
+
+    .dim-table h5, .fact-table h5 {
+      margin: 0 0 0.2rem 0;
+      color: #60a5fa;
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    .fact-table { border: 2px solid #f87171; }
+    .fact-table h5 { color: #f87171; }
+
+    .schema-fields {
+      color: #94a3b8;
+      font-size: 0.9em;
+    }
+
+    .schema-fields span {
+      display: block;
+      padding: 1px 0;
+    }
+
+    .schema-connector {
+      width: 2px;
+      height: 20px;
+      background: #475569;
+      margin: 0 auto;
+    }
+
+    /* ==========================================
+       LINEAGE DAG
+       ========================================== */
+    .lineage-dag {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 0.5rem;
+    }
+
+    .lineage-column {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .lineage-column-label {
+      font-size: 0.55em;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    .lineage-node {
+      padding: 0.35rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.55em;
+      font-weight: 500;
+      text-align: center;
+      min-width: 80px;
+    }
+
+    .lineage-node.source {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0.05) 100%);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      color: var(--color-accent);
+    }
+
+    .lineage-node.staging {
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(124, 58, 237, 0.05) 100%);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      color: var(--color-purple);
+    }
+
+    .lineage-node.intermediate {
+      background: linear-gradient(135deg, rgba(8, 145, 178, 0.15) 0%, rgba(8, 145, 178, 0.05) 100%);
+      border: 1px solid rgba(8, 145, 178, 0.3);
+      color: var(--color-cyan);
+    }
+
+    .lineage-node.fact {
+      background: linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+      color: var(--color-green);
+    }
+
+    .lineage-node.exposure {
+      background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.05) 100%);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+      color: var(--color-amber);
+    }
+
+    .lineage-arrows {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.5rem;
+      padding-top: 1.5rem;
+    }
+
+    .lineage-arrow-line {
+      width: 30px;
+      height: 2px;
+      background: #cbd5e1;
+      position: relative;
+    }
+
+    .lineage-arrow-line::after {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: -3px;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid #cbd5e1;
+    }
+
+    /* ==========================================
+       EOB REPORT MOCKUP
+       ========================================== */
+    .eob-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    .eob-page {
+      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      font-size: 0.5em;
+    }
+
+    .eob-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #ec4899;
+    }
+
+    .eob-logo {
+      color: #ec4899;
+      font-size: 1.2rem;
+    }
+
+    .eob-title {
+      font-weight: 700;
+      color: #ec4899;
+    }
+
+    .eob-section {
+      margin-bottom: 0.5rem;
+    }
+
+    .eob-section-title {
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: 0.25rem;
+      font-size: 1.1em;
+    }
+
+    .eob-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      color: var(--color-text-secondary);
+    }
+
+    .eob-highlight {
+      background: #fdf2f8;
+      padding: 0.4rem;
+      border-radius: var(--radius-sm);
+      margin: 0.4rem 0;
+    }
+
+    .eob-amount {
+      font-size: 1.4em;
+      font-weight: 700;
+      color: var(--color-text-primary);
+    }
+
+    .eob-progress {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.3rem;
+    }
+
+    .eob-progress-bar {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .eob-progress-bar.blue { background: var(--color-accent); }
+    .eob-progress-bar.pink { background: #ec4899; }
+
+    .eob-footer {
+      margin-top: 0.5rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      color: var(--color-text-muted);
+      font-size: 0.9em;
+    }
+
+    /* ==========================================
+       GLOSSARY TABLES
+       ========================================== */
+    .glossary-table {
+      background: white;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      font-size: 0.6em;
+    }
+
+    .glossary-table-header {
+      background: var(--color-border-light);
+      padding: 0.5rem;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      border-bottom: 2px solid var(--color-accent);
+    }
+
+    .glossary-table-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1.5fr;
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .glossary-table-row:nth-child(even) {
+      background: var(--color-border-light);
+    }
+
+    .glossary-table-row .term { font-weight: 600; color: var(--color-text-primary); }
+    .glossary-table-row .desc { color: var(--color-text-secondary); }
+    .glossary-table-row .source { font-family: var(--font-mono); font-size: 0.9em; color: var(--color-accent); }
+
+    .glossary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    /* ==========================================
+       VALUE CARDS
+       ========================================== */
+    .value-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+    }
+
+    .value-card {
+      background: var(--color-border-light);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem;
+      text-align: center;
+    }
+
+    .value-card h4 { font-size: 0.7em; margin: 3px 0; }
+    .value-card p { font-size: 0.55em; margin: 0; color: var(--color-text-muted); }
+
+    .tech-category {
+      background: var(--color-border-light);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+    }
+
+    .tech-category h4 { font-size: 0.65em; margin: 0 0 0.3rem 0; }
+
+    .tech-items { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .tech-item {
+      background: var(--color-white);
+      border: 1px solid var(--color-border);
+      padding: 3px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 0.6em;
+      color: var(--color-text-secondary);
+    }
+
+    .closing-box {
+      background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-navy) 100%);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      text-align: center;
+      margin-top: 0.75rem;
+    }
+
+    .closing-box h3 { color: #e2e8f0; font-size: 0.9em; margin: 0 0 3px 0; }
+    .closing-box p { color: #94a3b8; font-size: 0.65em; margin: 0; }
+
+    @media print {
+      .reveal .slides section {
+        page-break-after: always;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ==========================================
+           SLIDE 1: Title
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <div class="title-slide">
+          <span class="label">Data Architecture Overview</span>
+          <h1 style="font-size: 1.9em; line-height: 1.1; margin-bottom: 0.4rem;">
+            Healthcare RCM Analytics
+          </h1>
+          <h2 style="font-size: 1em; font-weight: 500; color: var(--color-text-muted); margin-bottom: 1.2rem;">
+            Building a Data Story Through Modern Data Lakehouse Architecture
+          </h2>
+
+          <div class="row" style="gap: 1rem; margin-bottom: 1rem;">
+            <div class="card" style="flex: 1; padding: 0.75rem;">
+              <h4 style="margin: 0; font-size: 0.8em;">Revenue Cycle Management</h4>
+              <p style="margin: 0; font-size: 0.65em;">End-to-end patient financial journey</p>
+            </div>
+            <div class="card" style="flex: 1; padding: 0.75rem;">
+              <h4 style="margin: 0; font-size: 0.8em;">Modern Lakehouse</h4>
+              <p style="margin: 0; font-size: 0.65em;">Raw - Staging - Intermediate - Marts</p>
+            </div>
+          </div>
+
+          <div class="row" style="gap: 0.5rem; flex-wrap: wrap;">
+            <span class="badge badge-outline">Data Integration</span>
+            <span class="badge badge-outline">Data Quality</span>
+            <span class="badge badge-outline">Business Intelligence</span>
+            <span class="badge badge-outline">Data Lineage</span>
+          </div>
+
+          <p style="margin-top: 1.5rem; font-size: 0.65em; color: var(--color-text-muted);">
+            RCM Analytics Demo
+          </p>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Data Lakehouse Architecture</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 2: Agenda
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Overview</span>
+        <h2>Agenda</h2>
+
+        <div class="columns columns-2" style="margin-top: 0.75rem;">
+          <div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">1. Use Case</h4>
+              <p style="margin: 0; font-size: 0.65em;">Healthcare Revenue Cycle Management</p>
+            </div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">2. Lakehouse Data Model</h4>
+              <p style="margin: 0; font-size: 0.65em;">Sources - Staging - Intermediate - Marts</p>
+            </div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">3. Business Glossary</h4>
+              <p style="margin: 0; font-size: 0.65em;">Domain terminology and definitions</p>
+            </div>
+            <div class="card" style="padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">4. Data Quality</h4>
+              <p style="margin: 0; font-size: 0.65em;">Checks, tests, and validations</p>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-green); font-size: 0.8em;">5. Lineage & Observability</h4>
+              <p style="margin: 0; font-size: 0.65em;">Data flow tracking and monitoring</p>
+            </div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-green); font-size: 0.8em;">6. Pipeline Operations</h4>
+              <p style="margin: 0; font-size: 0.65em;">Scheduler requirements</p>
+            </div>
+            <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-green); font-size: 0.8em;">7. Business Reports</h4>
+              <p style="margin: 0; font-size: 0.65em;">Patient invoices and EOB statements</p>
+            </div>
+            <div class="card card-highlight" style="padding: 0.6rem;">
+              <h4 style="margin: 0 0 0.2rem 0; color: var(--color-purple); font-size: 0.8em;">8. Demo</h4>
+              <p style="margin: 0; font-size: 0.65em;">Live walkthrough</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Agenda</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 3: Use Case - The Data Story
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Use Case</span>
+        <h2>RCM Demo Co - The Data Story</h2>
+
+        <p class="story-text" style="margin-bottom: 0.5rem;">
+          Meet <strong>RCM Demo Co</strong>, a fictitious healthcare company embracing data transformation. Data flows through: <span class="highlight-blue">Patient Management System (MSSQL)</span> – clinical interactions and <span class="highlight-red">Claims Processing System (Oracle)</span> – financial transactions for Revenue Cycle Management.
+        </p>
+
+        <!-- SOURCE SYSTEMS DIAGRAM - HTML/CSS -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1.5rem; padding: 0.75rem 0;">
+          <!-- MSSQL Source -->
+          <div class="source-card mssql" style="width: 130px;">
+            <div class="icon"><span class="iconify" data-icon="simple-icons:microsoftsqlserver"></span></div>
+            <h4>Patient Mgmt</h4>
+            <p>MSSQL</p>
+          </div>
+
+          <!-- Arrow MSSQL to S3 -->
+          <div style="display: flex; align-items: center;">
+            <div style="width: 50px; height: 2px; background: repeating-linear-gradient(90deg, #94a3b8 0, #94a3b8 6px, transparent 6px, transparent 10px);"></div>
+            <div style="width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid #94a3b8;"></div>
+          </div>
+
+          <!-- S3 Landing Zone (Center) -->
+          <div class="source-card s3" style="width: 130px;">
+            <div class="icon"><span class="iconify" data-icon="simple-icons:amazons3"></span></div>
+            <h4>S3 Landing</h4>
+            <p>CSV Extracts</p>
+          </div>
+
+          <!-- Arrow Oracle to S3 (reversed) -->
+          <div style="display: flex; align-items: center;">
+            <div style="width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-right: 10px solid #94a3b8;"></div>
+            <div style="width: 50px; height: 2px; background: repeating-linear-gradient(90deg, #94a3b8 0, #94a3b8 6px, transparent 6px, transparent 10px);"></div>
+          </div>
+
+          <!-- Oracle Source -->
+          <div class="source-card oracle" style="width: 130px;">
+            <div class="icon"><span class="iconify" data-icon="simple-icons:oracle"></span></div>
+            <h4>Claims Proc</h4>
+            <p>Oracle</p>
+          </div>
+        </div>
+
+        <p style="text-align: center; font-size: 0.6em; color: var(--color-text-muted); margin: 0.25rem 0;">Source Systems (OLTP) - Extract and Load</p>
+
+        <!-- PIPELINE FLOW - HTML/CSS -->
+        <div class="pipeline-flow">
+          <div class="pipeline-node">
+            <div class="pipeline-icon s3"><span class="iconify" data-icon="simple-icons:amazons3"></span></div>
+            <span class="pipeline-label">Landing Zone</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
+            <span class="pipeline-label">RAW</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
+            <span class="pipeline-label">STAGING</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
+            <span class="pipeline-label">INTERMEDIATE</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="marts-group">
+            <div class="marts-row">
+              <div class="mart-mini">Admin</div>
+            </div>
+            <div class="marts-row">
+              <div class="mart-mini">Billing</div>
+            </div>
+            <div class="marts-row">
+              <div class="mart-mini">Clinical</div>
+            </div>
+            <span class="pipeline-label" style="margin-top: 0.25rem;">MARTS</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon dashboard"><span class="iconify" data-icon="mdi:chart-line"></span></div>
+            <span class="pipeline-label">Dashboards</span>
+          </div>
+        </div>
+        <p style="text-align: center; font-size: 0.6em; color: var(--color-text-muted); margin: 0;">Lakehouse Data Pipeline (OLAP) - Transformation</p>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Use Case Scenario</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 4: RCM Demo Datasets
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Datasets</span>
+        <h2>The Fictitious RCM Demo Datasets</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Synthetically created with referential integrity</p>
+
+        <div class="columns columns-3" style="gap: 0.75rem; margin-bottom: 0.75rem;">
+          <div class="card" style="text-align: center; padding: 0.6rem;">
+            <h4 style="color: var(--color-purple); margin-bottom: 0.2rem; font-size: 0.85em;">Users</h4>
+            <p style="font-size: 0.65em; margin: 0;">Patients, Doctors, Staff, Payers</p>
+          </div>
+          <div class="card" style="text-align: center; padding: 0.6rem;">
+            <h4 style="color: var(--color-green); margin-bottom: 0.2rem; font-size: 0.85em;">Clinical Events</h4>
+            <p style="font-size: 0.65em; margin: 0;">Encounters, Procedures, Activities</p>
+          </div>
+          <div class="card" style="text-align: center; padding: 0.6rem;">
+            <h4 style="color: var(--color-amber); margin-bottom: 0.2rem; font-size: 0.85em;">Financial</h4>
+            <p style="font-size: 0.65em; margin: 0;">Claims, Collections, Health Plans</p>
+          </div>
+        </div>
+
+        <div class="card card-highlight" style="padding: 0.6rem;">
+          <h4 style="margin: 0 0 0.4rem 0; font-size: 0.8em;">Lakehouse - Raw Layer</h4>
+          <ul style="margin: 0; padding-left: 1.2em; font-size: 0.7em;">
+            <li>CSV files stored in S3 buckets</li>
+            <li>Optional external tables can reference CSV files without moving data</li>
+            <li>Tables can be created for selected subsets of interest</li>
+          </ul>
+        </div>
+
+        <div class="callout" style="margin-top: 0.5rem;">
+          <h4>Complete Patient Financial Journey</h4>
+          <p>Tracks the complete revenue cycle from patient registration through final payment collection.</p>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Demo Datasets</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 5: Staging Layer - HTML Data Models
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Lakehouse</span>
+        <h2>Staging Layer - Data Models</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">Base tables materialized as views against raw data</p>
+
+        <!-- HTML-BASED DATA MODEL TABLES -->
+        <div class="model-grid">
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_facilities</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">facilityID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">location</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">contactInfo</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_activities</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">activityID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">claimID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">activityDate</span><span class="type">DateTime</span></div>
+              <div class="model-field"><span class="name">activityType</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">diagnosisCode</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_users</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">userID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">userType</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">dateOfBirth</span><span class="type">DateTime</span></div>
+              <div class="model-field"><span class="name">department</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_health_plans</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">healthPlanID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">planName</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">payerID</span><span class="type">Int</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_collections</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">claimID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">date</span><span class="type">DateTime</span></div>
+              <div class="model-field"><span class="name">amountCollected</span><span class="type">Float</span></div>
+              <div class="model-field"><span class="name">status</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_claims</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">claimID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">patientID</span><span class="type">Int</span></div>
+              <div class="model-field"><span class="name">payerID</span><span class="type">Int</span></div>
+              <div class="model-field"><span class="name">status</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">amount</span><span class="type">Float</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:table"></span> stg_encounters</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">encounterID</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">patientID</span><span class="type">Int</span></div>
+              <div class="model-field"><span class="name">doctorID</span><span class="type">Int</span></div>
+              <div class="model-field"><span class="name">facilityID</span><span class="type">Int</span></div>
+              <div class="model-field"><span class="name">date</span><span class="type">DateTime</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns columns-2" style="gap: 0.75rem; margin-top: 0.5rem;">
+          <div class="callout" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">One-to-One Mapping</h4>
+            <p style="font-size: 0.6em;">Each source table → corresponding staging model (views)</p>
+          </div>
+          <div class="callout callout-blue" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">Minimal Transformations</h4>
+            <p style="font-size: 0.6em;">Column renaming, type casting, date standardization</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Staging Layer</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 6: Intermediate Layer
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Lakehouse</span>
+        <h2>Intermediate Layer - Persona Views</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">Purpose-built transformations organized by user personas</p>
+
+        <!-- HTML-BASED PERSONA TABLES -->
+        <div class="model-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 0.75rem;">
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:account-tie"></span> int_staff</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">staff_id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">staff_code</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">staff_name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">department</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">role</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">contactInfo</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:account-heart"></span> int_patients</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">patient_id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">patient_code</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">patient_name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">dateOfBirth</span><span class="type">DateTime</span></div>
+              <div class="model-field"><span class="name">total_encounters</span><span class="type">BigInt</span></div>
+              <div class="model-field"><span class="name">total_claims</span><span class="type">BigInt</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:stethoscope"></span> int_doctors</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">doctor_id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">doctor_code</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">doctor_name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">specialty</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">total_patients_seen</span><span class="type">BigInt</span></div>
+              <div class="model-field"><span class="name">facility_names</span><span class="type">String</span></div>
+            </div>
+          </div>
+
+          <div class="model-table">
+            <div class="model-table-header"><span class="iconify" data-icon="mdi:shield-account"></span> int_payers</div>
+            <div class="model-table-body">
+              <div class="model-field"><span class="name">payer_id</span><span class="pk">PK</span></div>
+              <div class="model-field"><span class="name">payer_code</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">payer_name</span><span class="type">String</span></div>
+              <div class="model-field"><span class="name">total_claims_received</span><span class="type">BigInt</span></div>
+              <div class="model-field"><span class="name">total_claims_amount</span><span class="type">Float</span></div>
+              <div class="model-field"><span class="name">total_health_plans</span><span class="type">BigInt</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns columns-2" style="gap: 0.75rem;">
+          <div class="card" style="padding: 0.6rem;">
+            <h4 style="margin: 0 0 0.3rem 0; font-size: 0.75em;">Persona-Based Views</h4>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.65em;">
+              <li>Single user entity split into focused persona views</li>
+              <li>Business rules applied through view definitions</li>
+              <li>Aggregated computations for downstream analysis</li>
+            </ul>
+          </div>
+          <div class="card" style="padding: 0.6rem; background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(8, 145, 178, 0.05) 100%); border-color: rgba(5, 150, 105, 0.2);">
+            <h4 style="margin: 0 0 0.3rem 0; font-size: 0.75em; color: var(--color-green);">Data Quality Enforced</h4>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.65em;">
+              <li>Uniqueness and not_null constraints</li>
+              <li>Referential integrity with staging tables</li>
+              <li>Accepted_values and custom validations</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Intermediate Layer</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 7: Marts Layer - Star Schema
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Lakehouse</span>
+        <h2>Marts Layer - Star Schema</h2>
+        <p class="subtitle" style="margin-bottom: 0.3rem;">Kimball Dimensional Modelling with 8 dimensions and 3 fact tables</p>
+
+        <!-- HTML-BASED STAR SCHEMA -->
+        <div class="star-schema">
+          <div class="schema-row">
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:cube-outline"></span> dim_facility</h5>
+              <div class="schema-fields">
+                <span>facility_id, code, name</span>
+                <span>location, contact_info</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:calendar"></span> dim_date</h5>
+              <div class="schema-fields">
+                <span>date_id, full_date, year</span>
+                <span>month, quarter, day_of_week</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:clipboard-text"></span> dim_health_plan</h5>
+              <div class="schema-fields">
+                <span>health_plan_id, code, name</span>
+                <span>payer_key, enrolled_patients</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:account"></span> dim_patient</h5>
+              <div class="schema-fields">
+                <span>patient_id, code, name</span>
+                <span>dateOfBirth, total_encounters</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="schema-connector"></div>
+
+          <div class="schema-row">
+            <div class="fact-table">
+              <h5><span class="iconify" data-icon="mdi:hospital-building"></span> fct_encounters</h5>
+              <div class="schema-fields">
+                <span>encounter_id, encounter_code</span>
+                <span>patient_key, doctor_key, facility_key</span>
+                <span>encounter_type, duration_minutes</span>
+              </div>
+            </div>
+            <div class="fact-table">
+              <h5><span class="iconify" data-icon="mdi:file-document"></span> fct_claims</h5>
+              <div class="schema-fields">
+                <span>claim_id, claim_code, claim_date</span>
+                <span>patient_key, payer_key, facility_key</span>
+                <span>claim_status, claim_amount, claim_count</span>
+              </div>
+            </div>
+            <div class="fact-table">
+              <h5><span class="iconify" data-icon="mdi:cash-multiple"></span> fct_collections</h5>
+              <div class="schema-fields">
+                <span>collection_id, claim_key, payer_key</span>
+                <span>collection_date, collected_amount</span>
+                <span>successful_collect, collection_rate</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="schema-connector"></div>
+
+          <div class="schema-row">
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:shield-account"></span> dim_payer</h5>
+              <div class="schema-fields">
+                <span>payer_id, code, name</span>
+                <span>total_claims, unique_patients</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:stethoscope"></span> dim_doctor</h5>
+              <div class="schema-fields">
+                <span>doctor_id, code, name</span>
+                <span>specialty, is_current</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:domain"></span> dim_department</h5>
+              <div class="schema-fields">
+                <span>department_id, name</span>
+                <span>staff_count</span>
+              </div>
+            </div>
+            <div class="dim-table">
+              <h5><span class="iconify" data-icon="mdi:medical-bag"></span> dim_diagnosis</h5>
+              <div class="schema-fields">
+                <span>diagnosis_id, code</span>
+                <span>is_current, valid_from/to</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="justify-content: center; gap: 0.5rem; margin-top: 0.4rem;">
+          <span class="badge badge-purple">SCD Type 2</span>
+          <span class="badge badge-green">Denormalized Facts</span>
+          <span class="badge badge-amber">Columnar Optimized</span>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Marts Layer</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 8: Business Glossary
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Governance</span>
+        <h2>Business Glossary</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">Domain terminology linked to technical metadata</p>
+
+        <!-- HTML-BASED GLOSSARY TABLES -->
+        <div class="glossary-grid">
+          <div class="glossary-table">
+            <div class="glossary-table-header">Healthcare Providers Domain</div>
+            <div class="glossary-table-row"><span class="term">Provider/Doctor</span><span class="desc">Healthcare professional authorized to provide medical services</span><span class="source">users.userType='DOCTOR'</span></div>
+            <div class="glossary-table-row"><span class="term">Specialty</span><span class="desc">Medical field of expertise for a provider</span><span class="source">users.specialty</span></div>
+            <div class="glossary-table-row"><span class="term">Provider ID</span><span class="desc">Unique identifier for healthcare provider</span><span class="source">users.userID</span></div>
+            <div class="glossary-table-row"><span class="term">Provider Encounters</span><span class="desc">Patient visits performed by provider</span><span class="source">encounters.doctorID</span></div>
+          </div>
+
+          <div class="glossary-table">
+            <div class="glossary-table-header">Clinical Domain</div>
+            <div class="glossary-table-row"><span class="term">Encounter</span><span class="desc">A patient visit or consultation event</span><span class="source">encounters.encounterID</span></div>
+            <div class="glossary-table-row"><span class="term">Diagnosis Code</span><span class="desc">ICD-10 code for medical condition</span><span class="source">activities.diagnosisCode</span></div>
+            <div class="glossary-table-row"><span class="term">Procedure Code</span><span class="desc">CPT code for medical procedure</span><span class="source">activities.procedureCode</span></div>
+            <div class="glossary-table-row"><span class="term">Activity Type</span><span class="desc">Type of clinical activity performed</span><span class="source">activities.activityType</span></div>
+          </div>
+
+          <div class="glossary-table">
+            <div class="glossary-table-header">Financial Domain</div>
+            <div class="glossary-table-row"><span class="term">Claim</span><span class="desc">Request for payment submitted to payer</span><span class="source">claims.claimID</span></div>
+            <div class="glossary-table-row"><span class="term">Collection</span><span class="desc">Payment received for a claim</span><span class="source">collections.amount</span></div>
+            <div class="glossary-table-row"><span class="term">Remittance</span><span class="desc">Payment explanation from payer</span><span class="source">claims.status</span></div>
+            <div class="glossary-table-row"><span class="term">Copay</span><span class="desc">Fixed amount paid by patient</span><span class="source">claims.copayAmount</span></div>
+          </div>
+
+          <div class="glossary-table">
+            <div class="glossary-table-header">Revenue Cycle Domain</div>
+            <div class="glossary-table-row"><span class="term">Days in AR</span><span class="desc">Average days to collect payment</span><span class="source">Calculated metric</span></div>
+            <div class="glossary-table-row"><span class="term">Collection Rate</span><span class="desc">Percentage of billed amount collected</span><span class="source">Calculated metric</span></div>
+            <div class="glossary-table-row"><span class="term">Denial Rate</span><span class="desc">Percentage of claims denied</span><span class="source">claims.status='DENIED'</span></div>
+            <div class="glossary-table-row"><span class="term">Clean Claim Rate</span><span class="desc">Claims processed without errors</span><span class="source">Calculated metric</span></div>
+          </div>
+        </div>
+
+        <div class="callout callout-blue" style="margin-top: 0.5rem;">
+          <h4>Metadata Integration</h4>
+          <p>All business terms are linked to technical metadata for complete traceability and governance.</p>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Business Glossary</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 9: Data Quality
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Quality</span>
+        <h2>Data Quality Checks & Validations</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Comprehensive validation framework across data layers</p>
+
+        <div class="columns columns-3" style="gap: 0.75rem; margin-bottom: 0.75rem;">
+          <div class="card" style="border-top: 3px solid var(--color-accent); padding: 0.6rem;">
+            <h4 style="color: var(--color-accent); margin-bottom: 0.4rem; font-size: 0.8em;">Daily Validation</h4>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.65em;">
+              <li>Uniqueness constraints</li>
+              <li>Format validations</li>
+              <li>Code validations</li>
+              <li>Not-null checks</li>
+            </ul>
+          </div>
+          <div class="card" style="border-top: 3px solid var(--color-amber); padding: 0.6rem;">
+            <h4 style="color: var(--color-amber); margin-bottom: 0.4rem; font-size: 0.8em;">Weekly Checks</h4>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.65em;">
+              <li>Provider-service matching</li>
+              <li>Payment reconciliation</li>
+              <li>Documentation completeness</li>
+              <li>Cross-reference validation</li>
+            </ul>
+          </div>
+          <div class="card" style="border-top: 3px solid var(--color-purple); padding: 0.6rem;">
+            <h4 style="color: var(--color-purple); margin-bottom: 0.4rem; font-size: 0.8em;">Monthly Audits</h4>
+            <ul style="margin: 0; padding-left: 1em; font-size: 0.65em;">
+              <li>Compliance review</li>
+              <li>Pattern analysis</li>
+              <li>Outlier detection</li>
+              <li>Trend monitoring</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0.6rem; background: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(8, 145, 178, 0.05) 100%); border-color: rgba(5, 150, 105, 0.2);">
+          <h4 style="margin: 0 0 0.3rem 0; font-size: 0.75em; color: var(--color-green);">Quality Objectives</h4>
+          <div class="columns" style="gap: 0.5rem;">
+            <div style="text-align: center; flex: 1;">
+              <p style="margin: 0; font-size: 0.65em; font-weight: 600;">Identify Issues</p>
+              <p style="margin: 0; font-size: 0.55em;">Data quality problems</p>
+            </div>
+            <div style="text-align: center; flex: 1;">
+              <p style="margin: 0; font-size: 0.65em; font-weight: 600;">Validate Rules</p>
+              <p style="margin: 0; font-size: 0.55em;">Business logic</p>
+            </div>
+            <div style="text-align: center; flex: 1;">
+              <p style="margin: 0; font-size: 0.65em; font-weight: 600;">Ensure Integrity</p>
+              <p style="margin: 0; font-size: 0.55em;">Referential checks</p>
+            </div>
+            <div style="text-align: center; flex: 1;">
+              <p style="margin: 0; font-size: 0.65em; font-weight: 600;">Monitor Compliance</p>
+              <p style="margin: 0; font-size: 0.55em;">Process standards</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Data Quality</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 10: Lineage & Observability
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Observability</span>
+        <h2>Data Lineage & Observability</h2>
+        <p class="subtitle" style="margin-bottom: 0.3rem;">End-to-end visibility from source to exposure</p>
+
+        <!-- HTML-BASED LINEAGE DAG - Simplified with single arrows between columns -->
+        <div style="display: flex; align-items: flex-start; justify-content: center; gap: 0.5rem; padding: 0.5rem;">
+          <!-- Source Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Source</div>
+            <div class="lineage-node source">activities</div>
+            <div class="lineage-node source">claims</div>
+            <div class="lineage-node source">collections</div>
+            <div class="lineage-node source">encounters</div>
+            <div class="lineage-node source">facilities</div>
+            <div class="lineage-node source">health_plans</div>
+            <div class="lineage-node source">users</div>
+          </div>
+
+          <!-- Arrow 1 -->
+          <div style="display: flex; align-items: center; padding-top: 80px; color: #94a3b8; font-size: 1.5rem;">→</div>
+
+          <!-- Staging Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Staging</div>
+            <div class="lineage-node staging">stg_activities</div>
+            <div class="lineage-node staging">stg_claims</div>
+            <div class="lineage-node staging">stg_collections</div>
+            <div class="lineage-node staging">stg_encounters</div>
+            <div class="lineage-node staging">stg_facilities</div>
+            <div class="lineage-node staging">stg_health_plans</div>
+            <div class="lineage-node staging">stg_users</div>
+          </div>
+
+          <!-- Arrow 2 -->
+          <div style="display: flex; align-items: center; padding-top: 80px; color: #94a3b8; font-size: 1.5rem;">→</div>
+
+          <!-- Intermediate Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Intermediate</div>
+            <div class="lineage-node intermediate">int_patients</div>
+            <div class="lineage-node intermediate">int_doctors</div>
+            <div class="lineage-node intermediate">int_payers</div>
+            <div class="lineage-node intermediate">int_staff</div>
+          </div>
+
+          <!-- Arrow 3 -->
+          <div style="display: flex; align-items: center; padding-top: 60px; color: #94a3b8; font-size: 1.5rem;">→</div>
+
+          <!-- Facts Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Facts</div>
+            <div class="lineage-node fact">fct_encounters</div>
+            <div class="lineage-node fact">fct_claims</div>
+            <div class="lineage-node fact">fct_collections</div>
+          </div>
+
+          <!-- Arrow 4 -->
+          <div style="display: flex; align-items: center; padding-top: 50px; color: #94a3b8; font-size: 1.5rem;">→</div>
+
+          <!-- Exposure Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Exposure</div>
+            <div class="lineage-node exposure">healthcare_analytics</div>
+          </div>
+        </div>
+
+        <div class="columns columns-3" style="gap: 0.5rem; margin-top: 0.5rem;">
+          <div class="value-card">
+            <h4>Impact Analysis</h4>
+            <p>Understand downstream effects</p>
+          </div>
+          <div class="value-card">
+            <h4>Root Cause</h4>
+            <p>Trace issues to source</p>
+          </div>
+          <div class="value-card">
+            <h4>Compliance</h4>
+            <p>Audit trail for regulations</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Lineage & Observability</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 11: Pipeline Requirements
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Operations</span>
+        <h2>Pipeline Scheduler Requirements</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Orchestration and monitoring for data pipelines</p>
+
+        <div class="columns columns-2" style="gap: 1rem;">
+          <div class="card" style="border-left: 3px solid var(--color-accent); padding: 0.6rem;">
+            <h4 style="margin: 0 0 0.4rem 0; color: var(--color-accent); font-size: 0.8em;">Pipeline #1 - Extract & Load</h4>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.65em;">
+              <li><strong>Schedule:</strong> Every 2 hours</li>
+              <li><strong>Blockout:</strong> Sunday 2-4 AM (Maintenance)</li>
+              <li><strong>Failure:</strong> Retry once after 15 min, max 2 times</li>
+              <li><strong>Alerts:</strong> Notifications for each failure</li>
+              <li><strong>Observability:</strong> Emit OpenLineage events</li>
+            </ul>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--color-green); padding: 0.6rem;">
+            <h4 style="margin: 0 0 0.4rem 0; color: var(--color-green); font-size: 0.8em;">Pipeline #2 - Transform</h4>
+            <ul style="margin: 0; padding-left: 1.1em; font-size: 0.65em;">
+              <li><strong>Trigger:</strong> Depends on Pipeline 1 completion</li>
+              <li><strong>Alternative:</strong> Execute every 4 hours if P1 doesn't run</li>
+              <li><strong>Freshness:</strong> Skip if data is stale</li>
+              <li><strong>Logging:</strong> Detailed logs for reporting</li>
+              <li><strong>Observability:</strong> Centralized log stack</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tech-category" style="margin-top: 0.75rem;">
+          <h4>Pipeline Components</h4>
+          <div class="tech-items">
+            <div class="tech-item">Transformations</div>
+            <div class="tech-item">Jobs</div>
+            <div class="tech-item">Scheduler</div>
+            <div class="tech-item">Logging</div>
+            <div class="tech-item">Data Source Connections</div>
+            <div class="tech-item">VFS</div>
+            <div class="tech-item">Profiles</div>
+            <div class="tech-item">Alerts/Notifications</div>
+            <div class="tech-item">Data Quality Checks</div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Pipeline Operations</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 12: Business Reports - EOB (HTML Mockup)
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Reporting</span>
+        <h2>Business Reports - EOB Statement</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">Explanation of Benefits - Multi-page statement for patients</p>
+
+        <!-- HTML-BASED EOB REPORT MOCKUPS -->
+        <div class="eob-grid">
+          <!-- Page 1: Summary -->
+          <div class="eob-page">
+            <div class="eob-header">
+              <span class="eob-logo"><span class="iconify" data-icon="mdi:heart-pulse"></span></span>
+              <span class="eob-title">RCM Demo Co</span>
+            </div>
+            <p style="margin: 0 0 0.4rem; font-size: 0.9em;">Explanation of Benefits (EOB) Statement</p>
+
+            <div class="columns columns-2" style="gap: 0.5rem; margin-bottom: 0.4rem;">
+              <div class="eob-section">
+                <div class="eob-section-title"><span class="iconify" data-icon="mdi:account"></span> Member Information</div>
+                <div class="eob-row"><span>Ashley Bird</span></div>
+                <div class="eob-row"><span>Member ID: HC360-120</span></div>
+                <div class="eob-row"><span>Group: HC360-98765</span></div>
+              </div>
+              <div class="eob-section">
+                <div class="eob-section-title"><span class="iconify" data-icon="mdi:hospital-building"></span> Provider Information</div>
+                <div class="eob-row"><span>Smith-Foster Clinic</span></div>
+                <div class="eob-row"><span>7569 Kevin Rapids Apt. 752</span></div>
+                <div class="eob-row"><span>Novaport</span></div>
+              </div>
+            </div>
+
+            <div class="eob-highlight">
+              <div class="eob-section-title">Claim Summary</div>
+              <div class="columns columns-3" style="text-align: center;">
+                <div><span style="font-size: 0.8em;">Total Charges</span><br><span class="eob-amount">$5,081.71</span></div>
+                <div><span style="font-size: 0.8em;">Plan Paid</span><br><span class="eob-amount" style="color: var(--color-green);">$4,319.45</span></div>
+                <div><span style="font-size: 0.8em;">You Owe</span><br><span class="eob-amount" style="color: var(--color-red);">$762.26</span></div>
+              </div>
+            </div>
+
+            <div class="eob-section">
+              <div class="eob-section-title">Your Deductible Progress</div>
+              <div class="eob-row"><span>Individual Deductible</span><span>$100 of $1,000</span></div>
+              <div class="eob-progress"><div class="eob-progress-bar blue" style="width: 10%;"></div></div>
+              <div class="eob-row" style="margin-top: 0.3rem;"><span>Out-of-Pocket Maximum</span><span>$762.26 of $5,000</span></div>
+              <div class="eob-progress"><div class="eob-progress-bar pink" style="width: 15%;"></div></div>
+            </div>
+
+            <div class="eob-footer">
+              <span><span class="iconify" data-icon="mdi:phone"></span> 1-800-HC360</span>
+              <span>Page 1 of 3</span>
+            </div>
+          </div>
+
+          <!-- Page 2: Claim Details -->
+          <div class="eob-page">
+            <div class="eob-header">
+              <span class="eob-logo"><span class="iconify" data-icon="mdi:heart-pulse"></span></span>
+              <span class="eob-title">RCM Demo Co</span>
+            </div>
+            <div class="eob-section-title">Claim Details</div>
+
+            <div class="glossary-table" style="font-size: 0.9em; margin-bottom: 0.5rem;">
+              <div class="glossary-table-row" style="grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr;">
+                <span style="font-weight: 600;">Service Date</span>
+                <span style="font-weight: 600;">Description</span>
+                <span style="font-weight: 600;">Amount</span>
+                <span style="font-weight: 600;">Plan Paid</span>
+                <span style="font-weight: 600;">You Owe</span>
+              </div>
+              <div class="glossary-table-row" style="grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr;">
+                <span>10/31/2024</span>
+                <span>General Consultation</span>
+                <span>$5,081.71</span>
+                <span>$4,319.45</span>
+                <span>$762.26</span>
+              </div>
+            </div>
+
+            <div class="eob-highlight">
+              <div class="eob-section-title">Claim Processing Details</div>
+              <div class="eob-row"><span>Claim Number:</span><span>194</span></div>
+              <div class="eob-row"><span>Processed Date:</span><span>1/10/2025</span></div>
+              <div class="eob-row"><span>Status:</span><span style="color: var(--color-green); font-weight: 600;">Processed</span></div>
+            </div>
+
+            <div class="eob-section" style="margin-top: 0.5rem;">
+              <div class="eob-section-title"><span class="iconify" data-icon="mdi:information-outline"></span> Appeal Rights</div>
+              <p style="font-size: 0.9em; color: var(--color-text-secondary);">If you disagree with this decision, you may appeal within 30 days.</p>
+            </div>
+
+            <div class="eob-footer">
+              <span><span class="iconify" data-icon="mdi:email"></span> support@rcm-demo.example.com</span>
+              <span>Page 2 of 3</span>
+            </div>
+          </div>
+
+          <!-- Page 3: Terms & Info -->
+          <div class="eob-page">
+            <div class="eob-header">
+              <span class="eob-logo"><span class="iconify" data-icon="mdi:heart-pulse"></span></span>
+              <span class="eob-title">RCM Demo Co</span>
+            </div>
+            <div class="eob-section-title">Important Information</div>
+
+            <div class="eob-highlight" style="margin-bottom: 0.4rem;">
+              <div class="eob-section-title">Your Benefits at a Glance</div>
+              <div class="eob-row"><span>Plan Name</span><span>Aetna Platinum EPO</span></div>
+              <div class="eob-row"><span>Plan Year</span><span>2025</span></div>
+              <div class="eob-row"><span>Annual Benefit Maximum</span><span>$5,000</span></div>
+              <div class="eob-row"><span>Remaining Balance</span><span style="font-weight: 600;">$3,500</span></div>
+            </div>
+
+            <div class="eob-section">
+              <div class="eob-section-title">Understanding Your Costs</div>
+              <p style="font-size: 0.9em; color: var(--color-text-secondary);">Your plan includes cost-sharing features like deductibles, copayments, and coinsurance. These determine your out-of-pocket costs for covered services.</p>
+            </div>
+
+            <div class="eob-section">
+              <div class="eob-section-title">Terms to Know</div>
+              <div class="eob-row"><span><strong>Deductible</strong></span></div>
+              <p style="font-size: 0.85em; margin: 0;">The amount you pay before your health plan begins to pay.</p>
+              <div class="eob-row" style="margin-top: 0.2rem;"><span><strong>Copayment</strong></span></div>
+              <p style="font-size: 0.85em; margin: 0;">A fixed amount you pay for covered services.</p>
+            </div>
+
+            <div class="eob-footer">
+              <span><span class="iconify" data-icon="mdi:web"></span> www.rcm-demo.example.com</span>
+              <span>Page 3 of 3</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns columns-2" style="gap: 0.75rem; margin-top: 0.5rem;">
+          <div class="callout" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">Dynamic Multi-Page Report</h4>
+            <p style="font-size: 0.6em;">Member info, claim summary, deductible progress, service details.</p>
+          </div>
+          <div class="callout callout-blue" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">Distribution</h4>
+            <p style="font-size: 0.6em;">Generated reports partitioned by type and date, delivered via SMTP.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Business Reports</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 13: Synthetic Data Generator
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Data Generator</span>
+        <h2>RCM Demo Co Synthetic Data Generator</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Configurable synthetic data for demos, testing, and development</p>
+
+        <div class="columns columns-2" style="gap: 1rem; margin-bottom: 0.75rem;">
+          <div class="card" style="padding: 0.75rem;">
+            <h4 style="margin: 0 0 0.4rem 0; color: var(--color-accent); font-size: 0.85em;">
+              <span class="iconify" data-icon="mdi:tune-vertical"></span> Configurable Volume Controls
+            </h4>
+            <ul style="margin: 0; padding-left: 1.2em; font-size: 0.65em;">
+              <li><strong>Patients:</strong> 50 - 2,000 records</li>
+              <li><strong>Doctors:</strong> 5 - 100 providers</li>
+              <li><strong>Facilities:</strong> 2 - 50 locations</li>
+              <li><strong>Encounters:</strong> 100 - 5,000 visits</li>
+              <li><strong>Claims:</strong> 100 - 7,500 claims</li>
+              <li><strong>Date Range:</strong> Custom start/end dates</li>
+            </ul>
+          </div>
+          <div class="card" style="padding: 0.75rem;">
+            <h4 style="margin: 0 0 0.4rem 0; color: var(--color-green); font-size: 0.85em;">
+              <span class="iconify" data-icon="mdi:cog-play"></span> Multiple Interfaces
+            </h4>
+            <ul style="margin: 0; padding-left: 1.2em; font-size: 0.65em;">
+              <li><strong>Marimo Notebook:</strong> Interactive UI with sliders</li>
+              <li><strong>CLI Module:</strong> Command-line for automation</li>
+              <li><strong>Docker:</strong> Containerized execution</li>
+              <li><strong>Output Formats:</strong> CSV, Parquet, JSON</li>
+              <li><strong>Reproducible:</strong> Seed parameter for consistency</li>
+              <li><strong>Realistic:</strong> Faker library integration</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Data Generator Pipeline -->
+        <div class="pipeline-flow" style="margin-bottom: 0.5rem;">
+          <div class="pipeline-node">
+            <div class="pipeline-icon" style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);"><span class="iconify" data-icon="mdi:tune"></span></div>
+            <span class="pipeline-label">Configure</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);"><span class="iconify" data-icon="mdi:cog-sync"></span></div>
+            <span class="pipeline-label">Generate</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon s3"><span class="iconify" data-icon="mdi:file-export"></span></div>
+            <span class="pipeline-label">Export</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="mdi:database-check"></span></div>
+            <span class="pipeline-label">Load to DW</span>
+          </div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-node">
+            <div class="pipeline-icon dashboard"><span class="iconify" data-icon="mdi:presentation-play"></span></div>
+            <span class="pipeline-label">Demo Ready</span>
+          </div>
+        </div>
+
+        <!-- CLI Commands Section -->
+        <div class="card" style="background: #1e293b; padding: 0.6rem 0.75rem; border: none;">
+          <h4 style="margin: 0 0 0.4rem 0; color: #60a5fa; font-size: 0.75em;"><span class="iconify" data-icon="mdi:console"></span> Quick Start Commands</h4>
+          <div style="font-family: var(--font-mono); font-size: 0.55em; color: #e2e8f0; line-height: 1.5;">
+            <div style="margin-bottom: 0.25rem;"><span style="color: #94a3b8;"># Interactive notebook</span><br><span style="color: #4ade80;">$</span> marimo run rcm_generator.py</div>
+            <div style="margin-bottom: 0.25rem;"><span style="color: #94a3b8;"># DuckDB with multi-schema (patient_mgmt, claims_proc, s3_landing)</span><br><span style="color: #4ade80;">$</span> python rcm_module.py --format duckdb --patients 500 --claims 1500</div>
+            <div style="margin-bottom: 0.25rem;"><span style="color: #94a3b8;"># Generate as Parquet files</span><br><span style="color: #4ade80;">$</span> python rcm_module.py --patients 500 --claims 1500 --format parquet</div>
+            <div><span style="color: #94a3b8;"># Docker with large dataset</span><br><span style="color: #4ade80;">$</span> docker-compose up generate-large</div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Data Generator</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 14: Data Generator - Entity Model
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Data Generator</span>
+        <h2>Generated Data Model</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">7 interrelated datasets with referential integrity</p>
+
+        <!-- Entity Relationship Diagram - Simplified with single arrows -->
+        <div style="display: flex; align-items: flex-start; justify-content: center; gap: 1rem; padding: 0.5rem;">
+          <!-- Master Data Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+            <div style="font-size: 0.6em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Master Data</div>
+            <div class="lineage-node source" style="min-width: 120px; text-align: center;">
+              <strong>users</strong><br>
+              <span style="font-size: 0.85em;">Patients, Doctors, Staff</span>
+            </div>
+            <div class="lineage-node source" style="min-width: 120px; text-align: center;">
+              <strong>facilities</strong><br>
+              <span style="font-size: 0.85em;">Hospitals, Clinics</span>
+            </div>
+            <div class="lineage-node source" style="min-width: 120px; text-align: center;">
+              <strong>health_plans</strong><br>
+              <span style="font-size: 0.85em;">Insurance Plans</span>
+            </div>
+          </div>
+
+          <!-- Arrow 1 -->
+          <div style="display: flex; align-items: center; padding-top: 50px; color: #94a3b8; font-size: 1.8rem;">→</div>
+
+          <!-- Transactions Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+            <div style="font-size: 0.6em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Transactions</div>
+            <div class="lineage-node staging" style="min-width: 120px; text-align: center;">
+              <strong>encounters</strong><br>
+              <span style="font-size: 0.85em;">Patient Visits</span>
+            </div>
+            <div class="lineage-node staging" style="min-width: 120px; text-align: center;">
+              <strong>claims</strong><br>
+              <span style="font-size: 0.85em;">Medical Claims</span>
+            </div>
+          </div>
+
+          <!-- Arrow 2 -->
+          <div style="display: flex; align-items: center; padding-top: 50px; color: #94a3b8; font-size: 1.8rem;">→</div>
+
+          <!-- Events Column -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+            <div style="font-size: 0.6em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Events</div>
+            <div class="lineage-node intermediate" style="min-width: 130px; text-align: center;">
+              <strong>claim_activities</strong><br>
+              <span style="font-size: 0.85em;">Lifecycle Events</span>
+            </div>
+            <div class="lineage-node fact" style="min-width: 130px; text-align: center;">
+              <strong>collections</strong><br>
+              <span style="font-size: 0.85em;">Payments Received</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Volume Profiles -->
+        <div class="model-grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 0.5rem;">
+          <div class="card" style="text-align: center; padding: 0.5rem; border-top: 3px solid var(--color-text-muted);">
+            <h4 style="margin: 0; font-size: 0.7em; color: var(--color-text-muted);">Demo</h4>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.6em;">50 patients, 100 claims</p>
+            <p style="margin: 0; font-size: 0.55em; color: var(--color-text-muted);">~1,500 records</p>
+          </div>
+          <div class="card" style="text-align: center; padding: 0.5rem; border-top: 3px solid var(--color-accent);">
+            <h4 style="margin: 0; font-size: 0.7em; color: var(--color-accent);">Small</h4>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.6em;">100 patients, 300 claims</p>
+            <p style="margin: 0; font-size: 0.55em; color: var(--color-text-muted);">~3,000 records</p>
+          </div>
+          <div class="card" style="text-align: center; padding: 0.5rem; border-top: 3px solid var(--color-green);">
+            <h4 style="margin: 0; font-size: 0.7em; color: var(--color-green);">Medium</h4>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.6em;">500 patients, 1,500 claims</p>
+            <p style="margin: 0; font-size: 0.55em; color: var(--color-text-muted);">~15,000 records</p>
+          </div>
+          <div class="card" style="text-align: center; padding: 0.5rem; border-top: 3px solid var(--color-purple);">
+            <h4 style="margin: 0; font-size: 0.7em; color: var(--color-purple);">Large</h4>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.6em;">2,000 patients, 7,500 claims</p>
+            <p style="margin: 0; font-size: 0.55em; color: var(--color-text-muted);">~75,000 records</p>
+          </div>
+        </div>
+
+        <div class="columns columns-2" style="gap: 0.75rem; margin-top: 0.5rem;">
+          <div class="callout" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">Realistic Data Quality</h4>
+            <p style="font-size: 0.6em;">Valid NPI numbers, ICD-10/CPT codes, realistic names and addresses via Faker.</p>
+          </div>
+          <div class="callout callout-blue" style="padding: 0.4rem 0.6rem;">
+            <h4 style="font-size: 0.7em;">Full RCM Lifecycle</h4>
+            <p style="font-size: 0.6em;">Patient → Encounter → Claim → Activities → Collection. Complete revenue cycle.</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Data Generator Model</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 15: Summary
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Summary</span>
+        <h2>Key Takeaways</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Healthcare RCM Analytics with Modern Data Lakehouse</p>
+
+        <div class="value-grid">
+          <div class="value-card">
+            <h4>Unified Data Model</h4>
+            <p>Raw - Staging - Intermediate - Marts</p>
+          </div>
+          <div class="value-card">
+            <h4>Data Quality</h4>
+            <p>Comprehensive validation at every layer</p>
+          </div>
+          <div class="value-card">
+            <h4>Full Lineage</h4>
+            <p>End-to-end traceability with OpenLineage</p>
+          </div>
+          <div class="value-card">
+            <h4>Business Glossary</h4>
+            <p>Domain terminology linked to metadata</p>
+          </div>
+          <div class="value-card">
+            <h4>Operational Excellence</h4>
+            <p>Scheduled pipelines with monitoring</p>
+          </div>
+          <div class="value-card">
+            <h4>Business Intelligence</h4>
+            <p>Reports and dashboards for stakeholders</p>
+          </div>
+        </div>
+
+        <div class="closing-box">
+          <h3>Modern Data Architecture for Healthcare</h3>
+          <p>From source systems to actionable insights - a complete data story</p>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Data Lakehouse Architecture</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      showSlideNumber: 'all',
+      transition: 'slide',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
+      center: false,
+      width: 1280,
+      height: 720,
+      margin: 0.04,
+      minScale: 0.2,
+      maxScale: 2.0,
+      pdfSeparateFragments: false,
+      pdfMaxPagesPerSlide: 1
+    });
+  </script>
+</body>
+</html>
