@@ -1,15 +1,32 @@
-# RCM Analytics Demo
+# Claimwise
 
-A complete Healthcare Revenue Cycle Management (RCM) analytics demo featuring:
+**Claimwise** is a fictitious healthcare company at the center of this Healthcare Revenue Cycle Management (RCM) analytics demo — a synthetic data generator and data lakehouse reference architecture inspired by dbt's [`jaffle_shop`](https://github.com/dbt-labs/jaffle-shop).
 
-- **Synthetic Data Generator** - Generate realistic RCM data for testing and demos
-- **Slide Deck** - Reveal.js presentation explaining the data lakehouse architecture
+Just as `jaffle_shop` uses a fictitious e-commerce store to teach analytics engineering concepts, **Claimwise** uses a fictitious healthcare provider to tell an end-to-end data story — from patient encounters and medical claims born in source systems, through an S3 landing zone, into a modern lakehouse (staging → intermediate → marts), and out to dashboards and business reports like EOB statements.
+
+This repository includes:
+
+- **Synthetic Data Generator** - Generate realistic Claimwise RCM data for testing and demos
+- **Slide Deck** - Reveal.js presentation telling the Claimwise data story and explaining the data lakehouse architecture
+
+## The Claimwise Story
+
+Claimwise is a healthcare organization embracing data transformation. Its data is born in two source systems that land in a shared S3 zone and are transformed by a lakehouse pipeline:
+
+| Source System | Technology | Feeds |
+|----------------|------------|-------|
+| Patient Management | MSSQL | users, facilities, encounters |
+| Claims Processing | Oracle | claims, claim_activities, collections, health_plans |
+
+`Landing Zone → Raw → Staging → Intermediate → Marts (Admin / Billing / Clinical) → Dashboards`
+
+This Claimwise narrative carries through the whole demo: the data model, business glossary, data quality checks, lineage graph, and a sample multi-page EOB (Explanation of Benefits) statement are all told from Claimwise's point of view.
 
 ## Project Structure
 
 ```
-rcm-analytics-demo/
-├── data-generator/          # Synthetic RCM data generator
+claimwise/
+├── data-generator/          # Synthetic Claimwise RCM data generator
 │   ├── rcm_generator.py     # Marimo interactive notebook
 │   ├── rcm_module.py        # Python CLI module
 │   ├── Dockerfile
@@ -84,7 +101,7 @@ python -m http.server 8000
 
 1. Title & Introduction
 2. Agenda
-3. Use Case - The Data Story
+3. Use Case - The Claimwise Data Story
 4. RCM Demo Datasets
 5. Staging Layer - Data Models
 6. Intermediate Layer - Persona Views

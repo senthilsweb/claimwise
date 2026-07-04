@@ -1,20 +1,20 @@
-# RCM Synthetic Data Generator
+# Claimwise Synthetic Data Generator
 
-Generate realistic healthcare revenue cycle management (RCM) synthetic data for testing, demos, and development.
+Generate realistic healthcare revenue cycle management (RCM) synthetic data for **Claimwise** — a fictitious healthcare company used to tell this demo's data story — for testing, demos, and development.
 
 ## Features
 
 - **Configurable Volume**: Control the number of patients, providers, encounters, claims, and more
 - **Realistic Data**: Uses Faker for realistic names, addresses, medical codes, and relationships
 - **Multiple Formats**: Export to CSV, Parquet, JSON, or DuckDB
-- **DuckDB Multi-Schema**: Simulates source systems with separate schemas (MSSQL, Oracle, S3)
+- **DuckDB Multi-Schema**: Simulates Claimwise's source systems with separate schemas (MSSQL, Oracle, S3)
 - **Interactive UI**: Marimo notebook with sliders and controls
 - **CLI Support**: Command-line interface for automation and CI/CD
 - **Docker Ready**: Containerized for easy deployment
 
 ## Data Model
 
-The generator creates 7 interrelated datasets following the healthcare RCM domain:
+The generator creates 7 interrelated datasets following Claimwise's healthcare RCM domain:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -68,8 +68,9 @@ The generator creates 7 interrelated datasets following the healthcare RCM domai
 ### Installation
 
 ```bash
-# Clone or download this repository
-cd rcm-data-generator
+# Clone this repository
+git clone https://github.com/senthilsweb/claimwise.git
+cd claimwise/data-generator
 
 # Create virtual environment (recommended)
 python -m venv venv
@@ -148,7 +149,7 @@ python rcm_module.py \
 
 ### DuckDB Multi-Schema Output
 
-Generate data directly into DuckDB with schemas that simulate the source systems:
+Generate data directly into DuckDB with schemas that simulate Claimwise's source systems:
 
 ```bash
 # Generate DuckDB database with multi-schema layout
