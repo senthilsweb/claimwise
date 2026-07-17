@@ -1,0 +1,38 @@
+# models/mart/admin/_admin_models.yml
+version: 2
+
+models:
+  - name: dim_staff
+    description: Staff dimension table containing all non-medical staff information
+    columns:
+      - name: staff_id
+        description: Primary key for staff dimension
+        tests:
+          - unique
+          - not_null
+      - name: staff_code
+        description: Business identifier for staff member
+        tests:
+          - unique
+          - not_null
+      - name: staff_name
+        description: Full name of staff member
+        tests:
+          - not_null
+      - name: department
+        description: Department where staff member works
+      - name: role
+        description: Staff member's role in the organization
+      - name: contact_info
+        description: Contact information for staff member
+      - name: valid_from
+        description: Record validity start date
+        tests:
+          - not_null
+      - name: valid_to
+        description: Record validity end date
+      - name: is_current
+        description: Flag indicating if this is the current record
+        tests:
+          - accepted_values:
+              values: [true, false]

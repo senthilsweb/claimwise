@@ -1,0 +1,183 @@
+version: 2
+
+sources:
+ - name: raw
+   description: "Source tables for Healthcare Revenue Cycle Management System"
+   tables:
+     - name: activities
+       description: "Tracks all claim-related activities and events in the revenue cycle workflow"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the activity record"
+         - name: activityID
+           data_type: text
+           description: "Business identifier for the activity (external reference code)"
+         - name: claimID
+           data_type: integer
+           description: "Foreign key reference to the parent claim"
+         - name: activityDate
+           data_type: date
+           description: "Date when the activity was performed"
+         - name: activityType
+           data_type: text
+           description: "Type of activity (Submission, Review, Documentation Request, Appeal, etc.)"
+         - name: diagnosisCode
+           data_type: text
+           description: "ICD-10 diagnosis code associated with the claim activity"
+         - name: procedureCode
+           data_type: text
+           description: "CPT/HCPCS procedure code associated with the claim activity"
+         - name: notes
+           data_type: text
+           description: "Additional notes or comments about the activity"
+
+     - name: claims
+       description: "Main claims table tracking all healthcare service billing claims and their lifecycle"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the claim record"
+         - name: claimID
+           data_type: text
+           description: "Business identifier for the claim (external reference code)"
+         - name: patientID
+           data_type: integer
+           description: "Foreign key reference to the patient"
+         - name: payerID
+           data_type: integer
+           description: "Foreign key reference to the insurance payer"
+         - name: status
+           data_type: text
+           description: "Current status of the claim (Submitted, In Review, Approved, Denied, Appealed)"
+         - name: dateCreated
+           data_type: date
+           description: "Date when the claim was initially created"
+         - name: dateUpdated
+           data_type: date
+           description: "Last date when the claim was modified"
+         - name: amount
+           data_type: double precision
+           description: "Total amount claimed in the local currency"
+
+     - name: collections
+       description: "Payment collections and reconciliation tracking for processed claims"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the collection record"
+         - name: collectionID
+           data_type: text
+           description: "Business identifier for the collection (external reference code)"
+         - name: claimID
+           data_type: integer
+           description: "Foreign key reference to the associated claim"
+         - name: date
+           data_type: date
+           description: "Date when the payment was collected"
+         - name: methodOfCollection
+           data_type: text
+           description: "Payment method used (Cash, Credit Card, Bank Transfer, Check, etc.)"
+         - name: amountCollected
+           data_type: double precision
+           description: "Amount collected in local currency"
+         - name: status
+           data_type: text
+           description: "Status of the collection (Processed, Pending, Completed, Failed)"
+
+     - name: encounters
+       description: "Patient encounters/visits tracking all healthcare service delivery events"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the encounter record"
+         - name: encounterID
+           data_type: text
+           description: "Business identifier for the encounter (external reference code)"
+         - name: patientID
+           data_type: integer
+           description: "Foreign key reference to the patient"
+         - name: doctorID
+           data_type: integer
+           description: "Foreign key reference to the treating doctor"
+         - name: facilityID
+           data_type: integer
+           description: "Foreign key reference to the healthcare facility"
+         - name: date
+           data_type: date
+           description: "Date of the encounter"
+         - name: type
+           data_type: text
+           description: "Type of encounter (Initial Visit, Follow-up, Emergency, Routine Checkup)"
+         - name: duration
+           data_type: integer
+           description: "Duration of the encounter in minutes"
+         - name: notes
+           data_type: text
+           description: "Clinical notes or comments about the encounter"
+
+     - name: facilities
+       description: "Healthcare facilities and locations where services are provided"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the facility record"
+         - name: facilityID
+           data_type: text
+           description: "Business identifier for the facility (external reference code)"
+         - name: name
+           data_type: text
+           description: "Official name of the healthcare facility"
+         - name: location
+           data_type: text
+           description: "Physical address or location of the facility"
+         - name: contactInfo
+           data_type: text
+           description: "Contact information for the facility"
+
+     - name: health_plans
+       description: "Insurance health plans offered by payers"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the health plan record"
+         - name: healthPlanID
+           data_type: text
+           description: "Business identifier for the health plan (external reference code)"
+         - name: planName
+           data_type: text
+           description: "Name of the insurance plan"
+         - name: payerID
+           data_type: integer
+           description: "Foreign key reference to the payer offering this plan"
+
+     - name: users
+       description: "Multi-type user table containing all system actors (patients, doctors, staff, payers)"
+       columns:
+         - name: id
+           data_type: integer
+           description: "Unique identifier for the user record"
+         - name: userID
+           data_type: text
+           description: "Business identifier for the user (external reference code)"
+         - name: userType
+           data_type: text
+           description: "Type of user (PATIENT, DOCTOR, STAFF, PAYER)"
+         - name: name
+           data_type: text
+           description: "Full name of the user"
+         - name: dateOfBirth
+           data_type: date
+           description: "Date of birth (primarily for patients)"
+         - name: contactInfo
+           data_type: text
+           description: "Contact information (phone, email, etc.)"
+         - name: specialty
+           data_type: text
+           description: "Medical specialty (for doctors)"
+         - name: department
+           data_type: text
+           description: "Department assignment (for staff)"
+         - name: role
+           data_type: text
+           description: "Role or position (for staff)"

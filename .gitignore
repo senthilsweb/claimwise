@@ -12,13 +12,6 @@ venv/
 ENV/
 .venv/
 
-# Output data
-output/
-*.csv
-*.parquet
-*.json
-*.duckdb
-
 # IDE
 .idea/
 .vscode/
@@ -31,3 +24,7 @@ output/
 # Backup files
 *.bak
 *~
+
+# Data outputs are scoped per app:
+#   data-generator/.gitignore ignores generated csv/parquet/json/duckdb
+#   dbt-pipeline/.gitignore ignores dbt artifacts and the local DuckDB file

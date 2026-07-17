@@ -1,0 +1,78 @@
+# models/mart/core/_core_models.yml
+version: 2
+
+models:
+  - name: dim_date
+    description: Date dimension table for time-based analysis
+    columns:
+      - name: date_id
+        description: Primary key for date dimension
+        tests:
+          - unique
+          - not_null
+      - name: full_date
+        description: Complete date in DATE format
+      - name: year
+        description: Year number
+      - name: month_number
+        description: Month number (1-12)
+      - name: month_name
+        description: Month name
+      - name: quarter
+        description: Quarter number (1-4)
+      - name: day_of_week
+        description: Day of week (0-6)
+      - name: is_weekend
+        description: Boolean flag for weekend
+
+  - name: dim_facility
+    description: Healthcare facility dimension table
+    columns:
+      - name: facility_id
+        description: Primary key for facility dimension
+        tests:
+          - unique
+          - not_null
+      - name: facility_code
+        description: Business identifier for facility
+        tests:
+          - unique
+          - not_null
+      - name: facility_name
+        description: Name of the facility
+        tests:
+          - not_null
+      - name: facility_location
+        description: Physical location of facility
+      - name: total_patients_served
+        description: Total number of unique patients at this facility
+      - name: total_doctors_practicing
+        description: Total number of doctors practicing at this facility
+
+  - name: dim_health_plan
+    description: Health insurance plan dimension table
+    columns:
+      - name: health_plan_id
+        description: Primary key for health plan dimension
+        tests:
+          - unique
+          - not_null
+      - name: health_plan_code
+        description: Business identifier for health plan
+        tests:
+          - unique
+          - not_null
+      - name: plan_name
+        description: Name of the health plan
+        tests:
+          - not_null
+      - name: payer_key
+        description: Foreign key to payer dimension
+        tests:
+          - relationships:
+              to: ref('dim_payer')
+              field: payer_id
+      - name: enrolled_patients
+        description: Number of patients enrolled in this plan
+      - name: total_claims_amount
+        description: Total amount of claims processed under this plan

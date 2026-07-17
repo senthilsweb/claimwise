@@ -1,0 +1,7 @@
+# Generated data outputs
+output/
+*.csv
+*.parquet
+*.json
+*.duckdb
+.marimo/

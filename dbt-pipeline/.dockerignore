@@ -1,0 +1,17 @@
+.git
+target/
+dbt_packages/
+logs/
+edr_target/
+env/
+.venv/
+*.duckdb
+.env
+.user.yml
+openspec/
+docs/
+reports/
+.DS_Store
+*.png
+data-generator/
+slides/

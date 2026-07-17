@@ -1,0 +1,20 @@
+version: 2
+
+exposures:
+  
+  - name: healthcare_analytics
+    type: dashboard
+    maturity: medium
+    url: https://evidence.dev/
+    description: >
+      Dashboard for Key Performance Indicators of Revenue Cycle Management process built using evidence
+    
+    depends_on:
+      - ref('fct_collections')
+      - ref('fct_claims')
+      - ref('fct_claim_activities')
+      - ref('fct_encounters')
+      
+    owner:
+      name: Senthilnathan Karuppaiah
+      email: senthilsweb@gmail.com

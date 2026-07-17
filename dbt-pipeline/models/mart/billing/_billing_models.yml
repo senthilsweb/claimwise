@@ -1,0 +1,103 @@
+# models/mart/billing/_billing_models.yml
+version: 2
+
+models:
+  - name: dim_payer
+    description: Insurance payer dimension table
+    columns:
+      - name: payer_id
+        description: Primary key for payer dimension
+        tests:
+          - unique
+          - not_null
+      - name: payer_code
+        description: Business identifier for payer
+        tests:
+          - unique
+          - not_null
+      - name: payer_name
+        description: Name of the insurance payer
+        tests:
+          - not_null
+      - name: total_claims_received
+        description: Total number of claims processed
+      - name: total_claims_amount
+        description: Total amount of all claims
+      - name: avg_claim_amount
+        description: Average amount per claim
+
+  - name: fct_claims
+    description: Insurance claims fact table
+    columns:
+      - name: claim_id
+        description: Primary key for claims fact
+        tests:
+          - unique
+          - not_null
+      - name: claim_code
+        description: Business identifier for claim
+        tests:
+          - unique
+          - not_null
+      - name: patient_key
+        description: Foreign key to patient dimension
+        tests:
+          - relationships:
+              to: ref('dim_patient')
+              field: patient_id
+      - name: payer_key
+        description: Foreign key to payer dimension
+        tests:
+          - relationships:
+              to: ref('dim_payer')
+              field: payer_id
+      - name: claim_amount
+        description: Total amount of claim
+        tests:
+          - not_null
+
+  - name: fct_claim_activities
+    description: Claim activity fact table
+    columns:
+      - name: activity_id
+        description: Primary key for claim activity
+        tests:
+          - unique
+          - not_null
+      - name: claim_key
+        description: Foreign key to claims fact
+        tests:
+          - relationships:
+              to: ref('fct_claims')
+              field: claim_id
+      - name: activity_type
+        description: Type of claim activity
+        tests:
+          - not_null
+
+  - name: fct_collections
+    description: Payment collections fact table
+    columns:
+      - name: collection_id
+        description: Primary key for collection fact
+        tests:
+          - unique
+          - not_null
+      - name: claim_key
+        description: Foreign key to claims fact
+        tests:
+          - relationships:
+              to: ref('fct_claims')
+              field: claim_id
+      - name: collected_amount
+        description: Amount collected
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: collection_rate
+        description: Percentage of claim amount collected
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1

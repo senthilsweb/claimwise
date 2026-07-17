@@ -1,0 +1,50 @@
+name: 'healthcare_analytics'
+version: '1.0.0'
+config-version: 2
+
+profile: 'healthcare_analytics'
+
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false
+
+vars:
+  'dbt_date:time_zone': 'America/New_York'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Quoting configuration
+quoting:
+  identifier: true  # Enables quoting for case-sensitive column names
+
+# Configuring models
+models:
+  healthcare_analytics:
+    staging:
+      +materialized: table
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    mart:
+      +materialized: table
+      +schema: mart
+  elementary:
+    ## elementary models will be created in the schema '<your_schema>_elementary'
+    +schema: "elementary"
+    ## Elementary does not support DuckDB — enable on prod (Databricks) only
+    +enabled: "{{ target.name == 'prod' }}"
+
+# Simple seed configuration
+seeds:
+  healthcare_analytics:
+    +schema: raw

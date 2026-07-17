@@ -6,6 +6,7 @@ Just as `jaffle_shop` uses a fictitious e-commerce store to teach analytics engi
 
 This repository includes:
 
+- **dbt Pipeline** - staging → intermediate → mart transformations on DuckDB (dev) and Databricks (prod)
 - **Synthetic Data Generator** - Generate realistic Claimwise RCM data for testing and demos
 - **Slide Deck** - Reveal.js presentation telling the Claimwise data story and explaining the data lakehouse architecture
 
@@ -26,15 +27,31 @@ This Claimwise narrative carries through the whole demo: the data model, busines
 
 ```
 claimwise/
+├── dbt-pipeline/            # dbt project: DuckDB (dev) / Databricks (prod)
+│   ├── models/              # staging → intermediate → mart
+│   ├── seeds/               # raw CSV source data
+│   ├── Makefile             # setup / build / test / daily
+│   └── README.md            # Quick start
 ├── data-generator/          # Synthetic Claimwise RCM data generator
 │   ├── rcm_generator.py     # Marimo interactive notebook
 │   ├── rcm_module.py        # Python CLI module
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── README.md            # Detailed documentation
-└── slides/
-    └── index.html           # Reveal.js presentation (15 slides)
+├── slides/
+│   └── index.html           # Reveal.js presentation (15 slides)
+└── openspec/                # Specs and change proposals
 ```
+
+### dbt Pipeline
+
+```bash
+cd dbt-pipeline
+python3 -m venv .venv && source .venv/bin/activate
+make setup deps seed build   # full build + tests on local DuckDB
+```
+
+See `dbt-pipeline/README.md` for the Databricks production setup.
 
 ## Quick Start
 

@@ -1,0 +1,35 @@
+# Example dbt profiles for healthcare_analytics — dev: DuckDB, prod: Databricks (env-var driven; see .env.example).
+healthcare_analytics:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'rcm.duckdb') }}"
+      schema: raw
+      threads: 8
+
+    prod:
+      type: databricks
+      catalog: "{{ env_var('DATABRICKS_CATALOG', 'rcm') }}"
+      schema: raw
+      host: "{{ env_var('DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 8
+      # Uncomment if double-quoted identifiers fail on your warehouse channel;
+      # this project quotes identifiers ("planName" etc.) and Databricks treats
+      # double quotes as string literals unless this ANSI option is enabled.
+      # session_properties:
+      #   spark.sql.ansi.doubleQuotedIdentifiers: true
+
+elementary:
+  target: prod
+  outputs:
+    prod:
+      type: databricks
+      catalog: "{{ env_var('DATABRICKS_CATALOG', 'rcm') }}"
+      schema: elementary
+      host: "{{ env_var('DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 8

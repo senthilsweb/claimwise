@@ -1,0 +1,41 @@
+# models/mart/clinical/_clinical_models.yml
+version: 2
+
+models:
+  - name: dim_patient
+    description: Patient dimension table
+    columns:
+      - name: patient_id
+        description: Primary key for patient dimension
+        tests:
+          - unique
+          - not_null
+      - name: patient_code
+        description: Business key for patient
+      - name: total_encounters
+        description: Total number of encounters for the patient
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+  - name: fct_encounters
+    description: Medical encounter fact table
+    columns:
+      - name: encounter_id
+        description: Primary key for encounter facts
+        tests:
+          - unique
+          - not_null
+      - name: patient_key
+        description: Foreign key to dim_patient
+        tests:
+          - relationships:
+              to: ref('dim_patient')
+              field: patient_id
+      - name: encounter_count
+        description: Always 1, used for counting encounters
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1]
