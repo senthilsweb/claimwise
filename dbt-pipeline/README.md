@@ -6,11 +6,13 @@ Catalog + Delta) in production. Snowflake support is planned as phase 2.
 
 ## Architecture
 
+Medallion layers:
+
 ```
-seeds (raw) → staging → intermediate → mart
+seeds (bronze) → silver (staging + intermediate) → gold
 ```
 
-Mart models are grouped into four domains: `core`, `clinical`, `billing`,
+Gold models are grouped into four domains: `core`, `clinical`, `billing`,
 and `admin`.
 
 ## Quick Start (dev, DuckDB)
@@ -53,7 +55,7 @@ support DuckDB).
 |---|---|
 | `setup` | Install Python dependencies |
 | `deps` | Install dbt packages |
-| `seed` | Load raw seed data |
+| `seed` | Load bronze seed data |
 | `build` | dbt build (run + test) |
 | `test` | Run dbt tests |
 | `daily` | Full daily pipeline (seed, build, report on prod) |
@@ -71,10 +73,12 @@ generator and a presentation deck.
 
 ```
 models/
-  staging/        # 1:1 views over raw sources
-  intermediate/   # denormalized business logic
-  mart/           # core | clinical | billing | admin
-seeds/            # raw CSV source data
+  bronze/         # source definitions over seed data
+  silver/         # 1:1 staging models over bronze sources
+    intermediate/ # denormalized business logic (silver schema)
+  gold/           # core | clinical | billing | admin
+    metrics/      # mtr_* metric layer — every KPI computed once here
+seeds/            # bronze CSV source data
 macros/
 tests/            # singular data-quality tests
 data-generator/   # synthetic RCM data (Python CLI + Marimo notebook)
@@ -92,10 +96,18 @@ python data-generator/rcm_module.py --format duckdb               # or straight 
 
 See `data-generator/README.md` for options. Slides: open `slides/index.html`.
 
+### Dashboard (Databricks AI/BI)
+
+`make dashboard` deploys the Claimwise Revenue Pulse dashboard from
+`dashboards/claimwise-revenue-pulse.lvdash.json` (see `dashboards/README.md`).
+It reads only the `gold.mtr_*` metric layer; `make metricview` additionally
+creates the Unity Catalog metric view `gold.claimwise_metrics`.
+
 ## Phase 2: Snowflake
 
 Add `dbt-snowflake` and a new profile output — the SQL is already portable
-(quoted identifiers and `listagg` work unchanged on Snowflake).
+(unquoted identifiers resolve case-insensitively on Snowflake too, and
+`listagg` works unchanged).
 
 ## More
 

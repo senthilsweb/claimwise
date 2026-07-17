@@ -8,7 +8,7 @@ TARGET ?= dev
 ENV := set -a; [ -f .env ] && . ./.env; set +a;
 DBT := $(ENV) dbt
 
-.PHONY: help setup deps debug seed run test build docs report daily clean clean-db docker-build docker-daily
+.PHONY: help setup deps debug seed run test build rebuild docs report daily clean clean-db docker-build docker-daily
 
 help:
 	@echo "Targets (TARGET=$(TARGET)):"
@@ -19,6 +19,7 @@ help:
 	@echo "  run           dbt run"
 	@echo "  test          dbt test"
 	@echo "  build         dbt build"
+	@echo "  rebuild       dbt build --full-refresh"
 	@echo "  docs          dbt docs generate"
 	@echo "  report        Elementary HTML report -> reports/"
 	@echo "  daily         build (+ elementary run & report when TARGET=prod)"
@@ -45,10 +46,26 @@ run:
 test:
 	@$(DBT) test --target $(TARGET)
 
-# seed runs first: staging models read seeds as sources (no DAG edge),
-# so a fresh database needs the raw tables loaded before dbt build.
+# seed runs first: silver models read seeds as sources (no DAG edge), so a
+# fresh database needs the bronze tables loaded before dbt build. Seeds are
+# then excluded from build itself — re-running them there races the silver
+# CTAS statements (no DAG edge means no ordering) and can capture an empty
+# source table mid-reload.
 build: seed
-	@$(DBT) build --target $(TARGET)
+	@$(DBT) build --exclude-resource-type seed --target $(TARGET)
+
+# full-refresh: recreate all tables and incremental models from scratch
+rebuild: seed
+	@$(DBT) build --exclude-resource-type seed --full-refresh --target $(TARGET)
+
+# deploy + publish the AI/BI dashboard (prod/Databricks only)
+dashboard:
+	@$(ENV) python ../dashboards/deploy.py
+
+# attempt the Unity Catalog metric view (prod only; mtr_* models are the
+# semantic layer of record either way)
+metricview:
+	@$(DBT) run-operation create_metric_view --target prod
 
 docs:
 	@$(DBT) docs generate --target $(TARGET)

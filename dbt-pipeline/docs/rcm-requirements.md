@@ -42,14 +42,14 @@ Our synthetic dataset maintains referential integrity across:
 - Clinical events (encounters, procedures)
 - Financial transactions (claims, collections)
 
-## Seed Data into "raw"
+## Seed Data into bronze
 
 Loading source data:
 ```bash
 # Generate synthetic data
 python generate_data.py
 
-# Seed into raw schema
+# Seed into bronze schema
 dbt seed
 ```
 
@@ -108,9 +108,9 @@ LEFT JOIN {{ ref('stg_encounters') }} e
 Auto-generated staging models:
 ```bash
 dbt run-operation generate_source --args '{
-    "schema_name": "raw",
-    "generate_columns": true,
-    "include_descriptions": true
+    schema_name: raw,
+    generate_columns: true,
+    include_descriptions: true
 }'
 ```
 

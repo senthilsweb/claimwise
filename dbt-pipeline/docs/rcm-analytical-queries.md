@@ -8,8 +8,8 @@ with patient_metrics as (
         count(fe.encounter_id) as total_encounters,
         sum(fe.emergency_visit_flag) as emergency_visits,
         avg(fe.duration_minutes) as avg_visit_duration
-    from "mart"."dim_patient" dp
-    left join "mart"."fct_encounters" fe 
+    from gold.dim_patient dp
+    left join gold.fct_encounters fe 
         on dp.patient_id = fe.patient_key
     group by 1, 2
 )
@@ -28,8 +28,8 @@ select
     avg(fc.claim_amount) as avg_claim_amount,
     sum(fc.approved_claim_flag) as approved_claims,
     sum(fc.denied_claim_flag) as denied_claims
-from "mart"."dim_payer" dp
-join "mart"."fct_claims" fc 
+from gold.dim_payer dp
+join gold.fct_claims fc 
     on dp.payer_id = fc.payer_key
 group by 1
 order by total_claim_amount desc;
@@ -43,9 +43,9 @@ SELECT
     COUNT(e.encounter_id) as total_encounters,
     COUNT(DISTINCT e.patient_key) as unique_patients,
     SUM(e.encounter_count) as encounter_count
-FROM mart.fct_encounters e
-JOIN mart.dim_facility f ON e.facility_key = f.facility_id
---JOIN mart.dim_date d ON e.date_key = d.date_id
+FROM gold.fct_encounters e
+JOIN gold.dim_facility f ON e.facility_key = f.facility_id
+--JOIN gold.dim_date d ON e.date_key = d.date_id
 --WHERE d.year = 2023  -- Assuming we want current year
 GROUP BY f.facility_name
 ORDER BY total_encounters DESC;
@@ -60,8 +60,8 @@ SELECT
     COUNT(DISTINCT e.encounter_id) as total_encounters,
     ROUND(COUNT(DISTINCT e.encounter_id)::numeric / 
           NULLIF(f.total_doctors_practicing, 0), 2) as encounters_per_doctor
-FROM mart.dim_facility f
-LEFT JOIN mart.fct_encounters e ON f.facility_id = e.facility_key
+FROM gold.dim_facility f
+LEFT JOIN gold.fct_encounters e ON f.facility_id = e.facility_key
 GROUP BY 
     f.facility_name,
     f.total_patients_served,
@@ -77,9 +77,9 @@ SELECT
     AVG(c.claim_amount) as avg_claim_amount,
     SUM(col.collected_amount) as total_collected,
     AVG(col.collection_rate) as avg_collection_rate
-FROM mart.fct_claims c
-JOIN mart.dim_payer p ON c.payer_key = p.payer_id
-LEFT JOIN mart.fct_collections col ON c.claim_id = col.claim_key
+FROM gold.fct_claims c
+JOIN gold.dim_payer p ON c.payer_key = p.payer_id
+LEFT JOIN gold.fct_collections col ON c.claim_id = col.claim_key
 GROUP BY p.payer_name;   
 ```
 
@@ -89,8 +89,8 @@ SELECT
     ca.activity_type,
     COUNT(*) as activity_count,
     COUNT(DISTINCT ca.claim_key) as unique_claims
-FROM mart.fct_claim_activities ca
-JOIN mart.fct_claims c ON ca.claim_key = c.claim_id
+FROM gold.fct_claim_activities ca
+JOIN gold.fct_claims c ON ca.claim_key = c.claim_id
 GROUP BY ca.activity_type;
 ```
     
@@ -109,8 +109,8 @@ WITH monthly_metrics AS (
         SUM(c.denied_claim_flag) AS denied_claims,
         SUM(col.collected_amount) AS collected_amount,
         AVG(col.collection_rate) AS avg_collection_rate
-    FROM mart.fct_claims c
-    LEFT JOIN mart.fct_collections col ON c.claim_id = col.claim_key
+    FROM gold.fct_claims c
+    LEFT JOIN gold.fct_collections col ON c.claim_id = col.claim_key
     GROUP BY 
         DATE_TRUNC('month', c.claim_date),
         EXTRACT(YEAR FROM c.claim_date),

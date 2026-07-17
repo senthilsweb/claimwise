@@ -130,15 +130,15 @@ dbt seed
 ```bash
 # Generate source YAML
 dbt run-operation generate_source --args '{
-   "schema_name": "raw",
+    "schema_name": "bronze",
     "generate_columns": true,
     "include_descriptions": true,
     "include_data_types": true,
-    "case_sensitive_cols" : true
+    "case_sensitive_cols": true
 }'
 
 # Generate staging models
-dbt run-operation generate_base_model --args '{"source_name": "raw", "table_name": "activities", "case_sensitive_cols": true}'
+dbt run-operation generate_base_model --args '{"source_name": "bronze", "table_name": "activities", "case_sensitive_cols": true}'
 # [Repeat for other tables]
 ```
 
@@ -146,10 +146,10 @@ dbt run-operation generate_base_model --args '{"source_name": "raw", "table_name
 ```bash
 dbt run --select staging
 dbt run --select intermediate
-dbt run --select mart.core
-dbt run --select mart.admin
-dbt run --select mart.billing
-dbt run --select mart.clinical
+dbt run --select gold.core
+dbt run --select gold.admin
+dbt run --select gold.billing
+dbt run --select gold.clinical
 ```
 
 ### Documentation

@@ -9,8 +9,8 @@ SELECT
     dp.patient_id,
     dp.patient_code,
     dp.patient_name,
-    dp."dateOfBirth" AS patient_dob,
-    dp."contactInfo" AS patient_contact,
+    dp.dateOfBirth AS patient_dob,
+    dp.contactInfo AS patient_contact,
     
     df.facility_name,
     df.facility_location,
@@ -37,12 +37,12 @@ SELECT
     'Your annual benefit balance is $5000. Remaining balance: $3500' AS benefit_balance, -- Placeholder
     'If you disagree with this decision, you may appeal within 30 days.' AS appeal_instruction, -- Hardcoded appeal instructions
     'Customer Service: 1-800-HC360' AS customer_service -- Static contact details
-FROM mart.fct_claims fc
-JOIN mart.dim_patient dp ON fc.patient_key = dp.patient_id
-JOIN mart.fct_encounters fe ON fc.claim_id = fe.encounter_id
-JOIN mart.dim_facility df ON fe.facility_key = df.facility_id
-JOIN mart.dim_payer fp ON fc.payer_key = fp.payer_id
-JOIN mart.dim_health_plan fh ON fp.payer_id = fh.payer_key
+FROM gold.fct_claims fc
+JOIN gold.dim_patient dp ON fc.patient_key = dp.patient_id
+JOIN gold.fct_encounters fe ON fc.claim_id = fe.encounter_id
+JOIN gold.dim_facility df ON fe.facility_key = df.facility_id
+JOIN gold.dim_payer fp ON fc.payer_key = fp.payer_id
+JOIN gold.dim_health_plan fh ON fp.payer_id = fh.payer_key
 ORDER BY fc.claim_date DESC;
 
 ```

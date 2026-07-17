@@ -33,12 +33,14 @@ case "$COMMAND" in
 
         dbt deps "${DBT_FLAGS[@]}" || FAILED=1
 
-        # Seed first: staging models read seeds as sources (no DAG edge),
-        # so a fresh database needs the raw tables before dbt build.
+        # Seed first: silver models read seeds as sources (no DAG edge),
+        # so a fresh database needs the bronze tables before dbt build.
         dbt seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
 
         # Record build failure but continue so observability still runs.
-        dbt build --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
+        # Seeds are excluded here: re-running them inside build races the
+        # silver CTAS statements (no DAG edge = no ordering guarantee).
+        dbt build --exclude-resource-type seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
 
         if [ "$ENABLE_ELEMENTARY" = "true" ]; then
             dbt run --select elementary --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1

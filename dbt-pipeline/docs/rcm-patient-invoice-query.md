@@ -12,8 +12,8 @@ SELECT
     dp.patient_id,
     dp.patient_code,
     dp.patient_name,
-    dp."dateOfBirth" AS patient_dob,
-    dp."contactInfo" AS patient_contact,
+    dp.dateOfBirth AS patient_dob,
+    dp.contactInfo AS patient_contact,
     
     df.facility_name,
     df.facility_location,
@@ -36,11 +36,11 @@ SELECT
     '10%' AS tax, -- Hardcoded tax value
     '0%' AS discount, -- Hardcoded discount value
     (fc.claim_amount - COALESCE(fc.claim_amount * 0.85, 0)) * 1.1 AS total_due -- Including Tax
-FROM mart.fct_claims fc
-JOIN mart.dim_patient dp ON fc.patient_key = dp.patient_id
-JOIN mart.fct_encounters fe ON fc.claim_id = fe.encounter_id
-JOIN mart.dim_facility df ON fe.facility_key = df.facility_id
-JOIN mart.dim_payer fp ON fc.payer_key = fp.payer_id
-JOIN mart.dim_health_plan fh ON fp.payer_id = fh.payer_key
+FROM gold.fct_claims fc
+JOIN gold.dim_patient dp ON fc.patient_key = dp.patient_id
+JOIN gold.fct_encounters fe ON fc.claim_id = fe.encounter_id
+JOIN gold.dim_facility df ON fe.facility_key = df.facility_id
+JOIN gold.dim_payer fp ON fc.payer_key = fp.payer_id
+JOIN gold.dim_health_plan fh ON fp.payer_id = fh.payer_key
 ORDER BY fc.claim_date DESC;
 ```
