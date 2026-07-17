@@ -41,15 +41,18 @@ def __(mo):
     num_staff = mo.ui.slider(
         start=5, stop=50, step=5, value=15, label="Number of Staff"
     )
+    num_payers = mo.ui.slider(
+        start=2, stop=11, step=1, value=10, label="Number of Payers"
+    )
     num_facilities = mo.ui.slider(
         start=2, stop=50, step=2, value=10, label="Number of Facilities"
     )
 
     mo.vstack([
         mo.hstack([num_patients, num_doctors], justify="start"),
-        mo.hstack([num_staff, num_facilities], justify="start"),
+        mo.hstack([num_staff, num_payers, num_facilities], justify="start"),
     ])
-    return num_doctors, num_facilities, num_patients, num_staff
+    return num_doctors, num_facilities, num_patients, num_payers, num_staff
 
 
 @app.cell
@@ -136,6 +139,7 @@ def __(
     num_encounters,
     num_facilities,
     num_patients,
+    num_payers,
     num_staff,
     output_dir,
     output_format,
@@ -149,6 +153,7 @@ def __(
         "num_patients": num_patients.value,
         "num_doctors": num_doctors.value,
         "num_staff": num_staff.value,
+        "num_payers": num_payers.value,
         "num_facilities": num_facilities.value,
         "num_encounters": num_encounters.value,
         "num_claims": num_claims.value,
@@ -180,7 +185,7 @@ def __(
     - health_plans.{output_format.value}: {results['health_plans']} records
     - encounters.{output_format.value}: {results['encounters']} records
     - claims.{output_format.value}: {results['claims']} records
-    - claim_activities.{output_format.value}: {results['claim_activities']} records
+    - activities.{output_format.value}: {results['activities']} records
     - collections.{output_format.value}: {results['collections']} records
 
     **Output Directory:** `{output_dir.value}`
@@ -195,25 +200,25 @@ def __(mo):
         ---
         ## Data Model Overview
 
-        The generator creates 7 interrelated datasets following healthcare RCM domain:
+        The generator creates 7 interrelated datasets matching the Claimwise
+        dbt pipeline bronze seeds:
 
         | Dataset | Description | Key Fields |
         |---------|-------------|------------|
-        | **users** | Doctors, staff, and patients | user_id, role, name, specialty |
-        | **facilities** | Healthcare facilities | facility_id, name, type, address |
-        | **health_plans** | Insurance plans | plan_id, payer, plan_type |
-        | **encounters** | Patient visits | encounter_id, patient_id, facility_id, date |
-        | **claims** | Medical claims | claim_id, encounter_id, amount, status |
-        | **claim_activities** | Claim lifecycle events | activity_id, claim_id, action, timestamp |
-        | **collections** | Payment collections | collection_id, claim_id, amount_collected |
+        | **users** | Patients, doctors, staff, and payers | id, userID, userType, name, specialty |
+        | **facilities** | Healthcare facilities | id, facilityID, name, location |
+        | **health_plans** | Insurance plans by payer | id, healthPlanID, planName, payerID |
+        | **encounters** | Patient visits | id, encounterID, patientID, doctorID, facilityID, date |
+        | **claims** | Medical claims | id, claimID, patientID, payerID, status, amount |
+        | **activities** | Claim lifecycle events | id, activityID, claimID, activityDate, activityType |
+        | **collections** | Payment collections | id, collectionID, claimID, amountCollected |
 
         ### Relationships
-        - Users → Encounters (patient_id, provider_id)
-        - Facilities → Encounters (facility_id)
-        - Health Plans → Claims (plan_id)
-        - Encounters → Claims (encounter_id)
-        - Claims → Claim Activities (claim_id)
-        - Claims → Collections (claim_id)
+        - Users (PATIENT/DOCTOR) + Facilities → Encounters
+        - Users (PATIENT/PAYER) → Claims
+        - Users (PAYER) → Health Plans
+        - Claims → Activities (every claim has at least one)
+        - Claims (Approved only) → Collections
         """
     )
     return

@@ -2,13 +2,21 @@
 RCM Synthetic Data Generator Module
 
 Generates realistic healthcare revenue cycle management (RCM) data
-for testing, demos, and development purposes.
+matching the Claimwise dbt pipeline seed schema (bronze layer):
+
+- users:        id, userID, userType, name, dateOfBirth, contactInfo, specialty, department, role
+- facilities:   id, facilityID, name, location, contactInfo
+- health_plans: id, healthPlanID, planName, payerID
+- encounters:   id, encounterID, patientID, doctorID, facilityID, date, type, duration, notes
+- claims:       id, claimID, patientID, payerID, status, dateCreated, dateUpdated, amount
+- activities:   id, activityID, claimID, activityDate, activityType, diagnosisCode, procedureCode, notes
+- collections:  id, collectionID, claimID, date, methodOfCollection, amountCollected, status
 """
 
 import os
 import random
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 
@@ -34,6 +42,7 @@ class GeneratorConfig:
     num_patients: int = 100
     num_doctors: int = 20
     num_staff: int = 15
+    num_payers: int = 10
     num_facilities: int = 10
     num_encounters: int = 200
     num_claims: int = 300
@@ -52,6 +61,7 @@ class GeneratorConfig:
             num_patients=config.get("num_patients", 100),
             num_doctors=config.get("num_doctors", 20),
             num_staff=config.get("num_staff", 15),
+            num_payers=config.get("num_payers", 10),
             num_facilities=config.get("num_facilities", 10),
             num_encounters=config.get("num_encounters", 200),
             num_claims=config.get("num_claims", 300),
@@ -69,71 +79,42 @@ class HealthcareDataGenerator:
     """
     Generates synthetic healthcare RCM data with configurable volumes.
 
-    Datasets generated:
-    - users: Doctors, staff, and patients
-    - facilities: Healthcare facilities
-    - health_plans: Insurance plans
-    - encounters: Patient visits
-    - claims: Medical claims
-    - claim_activities: Claim lifecycle events
-    - collections: Payment collections
+    Datasets match the dbt pipeline bronze seeds:
+    users, facilities, health_plans, encounters, claims, activities, collections.
     """
 
-    # Domain constants
+    # Domain constants — aligned with the dbt data-quality tests
     SPECIALTIES = [
-        "Cardiology", "Neurology", "Orthopedics", "Pediatrics", "Oncology",
-        "Dermatology", "Gastroenterology", "Pulmonology", "Endocrinology",
-        "Nephrology", "Rheumatology", "Urology", "Psychiatry", "Radiology",
-        "Emergency Medicine", "Family Medicine", "Internal Medicine"
+        "Cardiology", "Family Medicine", "Internal Medicine",
+        "Neurology", "Orthopedics", "Pediatrics"
     ]
 
-    FACILITY_TYPES = [
-        "Hospital", "Clinic", "Urgent Care", "Specialty Center",
-        "Ambulatory Surgery Center", "Rehabilitation Center"
-    ]
+    STAFF_DEPARTMENTS = ["Administration", "Nursing", "Billing", "Laboratory", "Radiology"]
+    STAFF_ROLES = ["Nurse", "Admin", "Billing Specialist", "Medical Assistant", "Receptionist"]
 
-    PAYERS = [
+    PAYER_NAMES = [
         "Blue Cross Blue Shield", "UnitedHealthcare", "Aetna", "Cigna",
         "Humana", "Kaiser Permanente", "Anthem", "Centene", "Molina",
         "Medicare", "Medicaid"
     ]
 
-    PLAN_TYPES = ["HMO", "PPO", "EPO", "POS", "HDHP", "Medicare Advantage"]
+    PLAN_TIERS = ["Platinum", "Gold", "Silver", "Bronze", "Essential"]
+    PLAN_TYPES = ["HMO", "PPO", "EPO", "POS"]
 
     ENCOUNTER_TYPES = [
-        "Office Visit", "Emergency", "Inpatient", "Outpatient",
-        "Telehealth", "Lab Visit", "Imaging", "Procedure"
+        "Initial Visit", "Follow-up", "Emergency",
+        "Routine Checkup", "Specialist Consultation"
     ]
 
-    DIAGNOSIS_CODES = [
-        "E11.9", "I10", "J06.9", "M54.5", "K21.0", "F32.9", "J45.909",
-        "E78.5", "N39.0", "R10.9", "G43.909", "L30.9", "H10.9", "R05.9"
+    CLAIM_STATUSES = ["Submitted", "In Review", "Approved", "Denied", "Appealed"]
+
+    ACTIVITY_TYPES = [
+        "Submission", "Review", "Documentation Request",
+        "Appeal", "Payment Processing"
     ]
 
-    CPT_CODES = [
-        ("99213", 75.00, 150.00), ("99214", 100.00, 200.00),
-        ("99215", 150.00, 300.00), ("99203", 100.00, 200.00),
-        ("99204", 150.00, 300.00), ("99205", 200.00, 400.00),
-        ("36415", 10.00, 25.00), ("85025", 15.00, 50.00),
-        ("80053", 20.00, 75.00), ("71046", 50.00, 150.00),
-        ("93000", 50.00, 150.00), ("81001", 10.00, 30.00)
-    ]
-
-    CLAIM_STATUSES = [
-        "Submitted", "Pending", "Approved", "Denied", "Paid",
-        "Partially Paid", "Under Review", "Appealed"
-    ]
-
-    CLAIM_ACTIONS = [
-        "Submitted", "Acknowledged", "Processed", "Approved",
-        "Denied", "Appealed", "Resubmitted", "Paid", "Adjusted"
-    ]
-
-    DENIAL_REASONS = [
-        "Missing Information", "Invalid Code", "Not Covered",
-        "Pre-authorization Required", "Duplicate Claim",
-        "Out of Network", "Timely Filing", "Coordination of Benefits"
-    ]
+    COLLECTION_METHODS = ["Cash", "Credit Card", "Bank Transfer", "Check", "Electronic Payment"]
+    COLLECTION_STATUSES = ["Processed", "Pending", "Completed", "Failed"]
 
     def __init__(self, config: Dict[str, Any] | GeneratorConfig):
         """Initialize generator with configuration."""
@@ -153,91 +134,84 @@ class HealthcareDataGenerator:
         self.health_plans: List[Dict] = []
         self.encounters: List[Dict] = []
         self.claims: List[Dict] = []
-        self.claim_activities: List[Dict] = []
+        self.activities: List[Dict] = []
         self.collections: List[Dict] = []
 
         # ID tracking
         self.patient_ids: List[int] = []
         self.doctor_ids: List[int] = []
+        self.payer_ids: List[int] = []
+        self._used_business_ids: set = set()
 
-    def _random_date(self, start: datetime = None, end: datetime = None) -> datetime:
-        """Generate random date within range."""
+    def _business_id(self, prefix: str) -> str:
+        """Generate a unique business identifier like CLM47870268."""
+        while True:
+            candidate = f"{prefix}{random.randint(100000, 99999999)}"
+            if candidate not in self._used_business_ids:
+                self._used_business_ids.add(candidate)
+                return candidate
+
+    def _random_date(self, start: datetime = None, end: datetime = None) -> date:
+        """Generate random date within range (never in the future)."""
         start = start or self.config.start_date
         end = end or self.config.end_date
         if isinstance(start, str):
             start = datetime.fromisoformat(start)
         if isinstance(end, str):
             end = datetime.fromisoformat(end)
+        if isinstance(start, datetime):
+            start = start.date()
+        if isinstance(end, datetime):
+            end = end.date()
+        end = min(end, date.today())
         delta = end - start
         random_days = random.randint(0, max(0, delta.days))
         return start + timedelta(days=random_days)
 
     def generate_users(self) -> List[Dict]:
-        """Generate users: doctors, staff, and patients."""
+        """Generate users: doctors, staff, payers, and patients."""
         self.users = []
         user_id = 1
 
-        # Generate doctors
-        for _ in range(self.config.num_doctors):
-            user = {
-                "user_id": user_id,
-                "role": "Doctor",
-                "first_name": self.fake.first_name(),
-                "last_name": self.fake.last_name(),
-                "email": self.fake.email(),
-                "phone": self.fake.phone_number(),
-                "specialty": random.choice(self.SPECIALTIES),
-                "npi": self.fake.numerify("##########"),
-                "license_number": self.fake.bothify("??######"),
-                "hire_date": self.fake.date_between(start_date="-10y", end_date="-1y").isoformat(),
-                "status": "Active",
-                "created_at": datetime.now().isoformat(),
+        def base_user(user_type: str, prefix: str) -> Dict:
+            return {
+                "id": user_id,
+                "userID": self._business_id(prefix),
+                "userType": user_type,
+                "name": self.fake.name(),
+                "dateOfBirth": None,
+                "contactInfo": self.fake.phone_number(),
+                "specialty": None,
+                "department": None,
+                "role": None,
             }
+
+        for _ in range(self.config.num_doctors):
+            user = base_user("DOCTOR", "DR")
+            user["specialty"] = random.choice(self.SPECIALTIES)
+            user["dateOfBirth"] = self.fake.date_of_birth(minimum_age=30, maximum_age=70).isoformat()
             self.users.append(user)
             self.doctor_ids.append(user_id)
             user_id += 1
 
-        # Generate staff
-        staff_roles = ["Nurse", "Admin", "Billing Specialist", "Medical Assistant", "Receptionist"]
         for _ in range(self.config.num_staff):
-            user = {
-                "user_id": user_id,
-                "role": random.choice(staff_roles),
-                "first_name": self.fake.first_name(),
-                "last_name": self.fake.last_name(),
-                "email": self.fake.email(),
-                "phone": self.fake.phone_number(),
-                "specialty": None,
-                "npi": None,
-                "license_number": None,
-                "hire_date": self.fake.date_between(start_date="-10y", end_date="-1y").isoformat(),
-                "status": "Active",
-                "created_at": datetime.now().isoformat(),
-            }
+            user = base_user("STAFF", "STF")
+            user["department"] = random.choice(self.STAFF_DEPARTMENTS)
+            user["role"] = random.choice(self.STAFF_ROLES)
+            user["dateOfBirth"] = self.fake.date_of_birth(minimum_age=20, maximum_age=65).isoformat()
             self.users.append(user)
             user_id += 1
 
-        # Generate patients
+        for i in range(self.config.num_payers):
+            user = base_user("PAYER", "PAY")
+            user["name"] = self.PAYER_NAMES[i % len(self.PAYER_NAMES)]
+            self.users.append(user)
+            self.payer_ids.append(user_id)
+            user_id += 1
+
         for _ in range(self.config.num_patients):
-            user = {
-                "user_id": user_id,
-                "role": "Patient",
-                "first_name": self.fake.first_name(),
-                "last_name": self.fake.last_name(),
-                "email": self.fake.email(),
-                "phone": self.fake.phone_number(),
-                "specialty": None,
-                "npi": None,
-                "license_number": None,
-                "hire_date": None,
-                "status": "Active",
-                "created_at": datetime.now().isoformat(),
-                "date_of_birth": self.fake.date_of_birth(minimum_age=1, maximum_age=90).isoformat(),
-                "gender": random.choice(["Male", "Female", "Other"]),
-                "address": self.fake.address().replace("\n", ", "),
-                "ssn_last4": self.fake.numerify("####"),
-                "mrn": self.fake.numerify("MRN######"),
-            }
+            user = base_user("PATIENT", "PT")
+            user["dateOfBirth"] = self.fake.date_of_birth(minimum_age=1, maximum_age=90).isoformat()
             self.users.append(user)
             self.patient_ids.append(user_id)
             user_id += 1
@@ -247,51 +221,35 @@ class HealthcareDataGenerator:
     def generate_facilities(self) -> List[Dict]:
         """Generate healthcare facilities."""
         self.facilities = []
+        suffixes = ["Clinic", "Hospital", "Medical Center", "Urgent Care", "Specialty Center"]
 
         for i in range(1, self.config.num_facilities + 1):
-            facility_type = random.choice(self.FACILITY_TYPES)
             facility = {
-                "facility_id": i,
-                "name": f"{self.fake.company()} {facility_type}",
-                "type": facility_type,
-                "address": self.fake.street_address(),
-                "city": self.fake.city(),
-                "state": self.fake.state_abbr(),
-                "zip_code": self.fake.zipcode(),
-                "phone": self.fake.phone_number(),
-                "npi": self.fake.numerify("##########"),
-                "tax_id": self.fake.numerify("##-#######"),
-                "bed_count": random.randint(10, 500) if facility_type == "Hospital" else None,
-                "status": "Active",
-                "created_at": datetime.now().isoformat(),
+                "id": i,
+                "facilityID": self._business_id("FAC"),
+                "name": f"{self.fake.company()} {random.choice(suffixes)}",
+                "location": f"{self.fake.street_address()}, {self.fake.city()}",
+                "contactInfo": self.fake.phone_number(),
             }
             self.facilities.append(facility)
 
         return self.facilities
 
     def generate_health_plans(self) -> List[Dict]:
-        """Generate health insurance plans."""
+        """Generate health insurance plans offered by payers."""
+        if not self.payer_ids:
+            raise ValueError("Must generate users before health plans")
+
         self.health_plans = []
         plan_id = 1
 
-        for payer in self.PAYERS:
-            # Each payer has 1-3 plan types
-            num_plans = random.randint(1, 3)
-            for _ in range(num_plans):
-                plan_type = random.choice(self.PLAN_TYPES)
+        for payer_id in self.payer_ids:
+            for _ in range(random.randint(1, 3)):
                 plan = {
-                    "plan_id": plan_id,
-                    "payer_name": payer,
-                    "plan_name": f"{payer} {plan_type}",
-                    "plan_type": plan_type,
-                    "group_number": self.fake.numerify("GRP######"),
-                    "deductible": random.choice([500, 1000, 1500, 2000, 2500, 3000]),
-                    "copay": random.choice([10, 20, 25, 30, 40, 50]),
-                    "coinsurance": random.choice([10, 20, 30]),
-                    "out_of_pocket_max": random.choice([3000, 5000, 6500, 8000, 10000]),
-                    "effective_date": self.fake.date_between(start_date="-2y", end_date="-1y").isoformat(),
-                    "status": "Active",
-                    "created_at": datetime.now().isoformat(),
+                    "id": plan_id,
+                    "healthPlanID": self._business_id("HP"),
+                    "planName": f"{random.choice(self.PLAN_TIERS)} {random.choice(self.PLAN_TYPES)}",
+                    "payerID": payer_id,
                 }
                 self.health_plans.append(plan)
                 plan_id += 1
@@ -308,142 +266,109 @@ class HealthcareDataGenerator:
         self.encounters = []
 
         for i in range(1, self.config.num_encounters + 1):
-            encounter_date = self._random_date()
-            encounter_type = random.choice(self.ENCOUNTER_TYPES)
-
             encounter = {
-                "encounter_id": i,
-                "patient_id": random.choice(self.patient_ids),
-                "provider_id": random.choice(self.doctor_ids),
-                "facility_id": random.choice([f["facility_id"] for f in self.facilities]),
-                "encounter_type": encounter_type,
-                "encounter_date": encounter_date.isoformat(),
-                "check_in_time": encounter_date.replace(
-                    hour=random.randint(7, 17),
-                    minute=random.randint(0, 59)
-                ).isoformat(),
-                "check_out_time": encounter_date.replace(
-                    hour=random.randint(8, 20),
-                    minute=random.randint(0, 59)
-                ).isoformat(),
-                "chief_complaint": self.fake.sentence(nb_words=5),
-                "diagnosis_code": random.choice(self.DIAGNOSIS_CODES),
-                "diagnosis_description": self.fake.sentence(nb_words=4),
-                "status": random.choice(["Completed", "In Progress", "Cancelled", "No Show"]),
-                "notes": self.fake.paragraph(nb_sentences=2) if random.random() > 0.5 else None,
-                "created_at": datetime.now().isoformat(),
+                "id": i,
+                "encounterID": self._business_id("ENC"),
+                "patientID": random.choice(self.patient_ids),
+                "doctorID": random.choice(self.doctor_ids),
+                "facilityID": random.choice([f["id"] for f in self.facilities]),
+                "date": self._random_date().isoformat(),
+                "type": random.choice(self.ENCOUNTER_TYPES),
+                "duration": random.randint(10, 120),
+                "notes": self.fake.paragraph(nb_sentences=3),
             }
             self.encounters.append(encounter)
 
         return self.encounters
 
     def generate_claims(self) -> List[Dict]:
-        """Generate medical claims."""
-        if not self.encounters:
-            raise ValueError("Must generate encounters before claims")
-        if not self.health_plans:
-            raise ValueError("Must generate health_plans before claims")
+        """Generate claims referencing patients and payers."""
+        if not self.patient_ids or not self.payer_ids:
+            raise ValueError("Must generate users before claims")
 
         self.claims = []
 
         for i in range(1, self.config.num_claims + 1):
-            encounter = random.choice(self.encounters)
-            cpt_code, min_charge, max_charge = random.choice(self.CPT_CODES)
-            billed_amount = round(random.uniform(min_charge, max_charge), 2)
-            allowed_amount = round(billed_amount * random.uniform(0.6, 0.9), 2)
-
-            status = random.choice(self.CLAIM_STATUSES)
-            paid_amount = 0.0
-            if status in ["Paid", "Partially Paid"]:
-                paid_amount = round(allowed_amount * random.uniform(0.5, 1.0), 2)
-
-            encounter_date = datetime.fromisoformat(encounter["encounter_date"])
-            submission_date = encounter_date + timedelta(days=random.randint(1, 14))
+            date_created = self._random_date()
+            date_updated = self._random_date(
+                start=datetime.combine(date_created, datetime.min.time())
+            )
 
             claim = {
-                "claim_id": i,
-                "encounter_id": encounter["encounter_id"],
-                "patient_id": encounter["patient_id"],
-                "provider_id": encounter["provider_id"],
-                "facility_id": encounter["facility_id"],
-                "plan_id": random.choice([p["plan_id"] for p in self.health_plans]),
-                "claim_number": self.fake.bothify("CLM#########"),
-                "cpt_code": cpt_code,
-                "diagnosis_code": encounter["diagnosis_code"],
-                "service_date": encounter["encounter_date"],
-                "submission_date": submission_date.isoformat(),
-                "billed_amount": billed_amount,
-                "allowed_amount": allowed_amount,
-                "paid_amount": paid_amount,
-                "patient_responsibility": round(billed_amount - paid_amount, 2),
-                "status": status,
-                "denial_reason": random.choice(self.DENIAL_REASONS) if status == "Denied" else None,
-                "created_at": datetime.now().isoformat(),
+                "id": i,
+                "claimID": self._business_id("CLM"),
+                "patientID": random.choice(self.patient_ids),
+                "payerID": random.choice(self.payer_ids),
+                "status": random.choice(self.CLAIM_STATUSES),
+                "dateCreated": date_created.isoformat(),
+                "dateUpdated": date_updated.isoformat(),
+                "amount": round(random.uniform(50.0, 5000.0), 2),
             }
             self.claims.append(claim)
 
         return self.claims
 
-    def generate_claim_activities(self) -> List[Dict]:
-        """Generate claim lifecycle activities."""
+    def generate_activities(self) -> List[Dict]:
+        """Generate claim lifecycle activities (every claim gets at least one)."""
         if not self.claims:
             raise ValueError("Must generate claims before activities")
 
-        self.claim_activities = []
+        self.activities = []
         activity_id = 1
 
         for claim in self.claims:
-            submission_date = datetime.fromisoformat(claim["submission_date"])
+            created = date.fromisoformat(claim["dateCreated"])
+            updated = date.fromisoformat(claim["dateUpdated"])
             num_activities = random.randint(1, self.config.avg_activities_per_claim * 2)
 
-            current_date = submission_date
             for j in range(num_activities):
-                action = self.CLAIM_ACTIONS[min(j, len(self.CLAIM_ACTIONS) - 1)]
+                # First activity is always the submission; dates stay inside
+                # the claim's created/updated window.
+                window = (updated - created).days
+                offset = 0 if j == 0 else random.randint(0, max(0, window))
+                activity_type = "Submission" if j == 0 else random.choice(self.ACTIVITY_TYPES)
 
                 activity = {
-                    "activity_id": activity_id,
-                    "claim_id": claim["claim_id"],
-                    "action": action,
-                    "action_date": current_date.isoformat(),
-                    "performed_by": f"User_{random.randint(1, self.config.num_staff)}",
-                    "notes": self.fake.sentence() if random.random() > 0.7 else None,
-                    "previous_status": self.CLAIM_STATUSES[max(0, j - 1)] if j > 0 else None,
-                    "new_status": random.choice(self.CLAIM_STATUSES),
-                    "created_at": datetime.now().isoformat(),
+                    "id": activity_id,
+                    "activityID": self._business_id("ACT"),
+                    "claimID": claim["id"],
+                    "activityDate": (created + timedelta(days=offset)).isoformat(),
+                    "activityType": activity_type,
+                    "diagnosisCode": f"ICD-{random.randint(10000, 99999)}",
+                    "procedureCode": f"CPT-{random.randint(10000, 99999)}",
+                    "notes": self.fake.paragraph(nb_sentences=3),
                 }
-                self.claim_activities.append(activity)
+                self.activities.append(activity)
                 activity_id += 1
-                current_date += timedelta(days=random.randint(1, 7))
 
-        return self.claim_activities
+        return self.activities
 
     def generate_collections(self) -> List[Dict]:
-        """Generate payment collections."""
+        """Generate payment collections for approved claims only."""
         if not self.claims:
             raise ValueError("Must generate claims before collections")
 
         self.collections = []
         collection_id = 1
 
-        # Only create collections for paid or partially paid claims
-        paid_claims = [c for c in self.claims if c["status"] in ["Paid", "Partially Paid"]]
+        approved_claims = [c for c in self.claims if c["status"] == "Approved"]
 
-        for claim in paid_claims:
-            service_date = datetime.fromisoformat(claim["service_date"])
-            collection_date = service_date + timedelta(days=random.randint(30, 90))
+        for claim in approved_claims:
+            date_updated = date.fromisoformat(claim["dateUpdated"])
+            collection_date = min(
+                date_updated + timedelta(days=random.randint(0, 60)),
+                date.today(),
+            )
 
             collection = {
-                "collection_id": collection_id,
-                "claim_id": claim["claim_id"],
-                "patient_id": claim["patient_id"],
-                "amount_billed": claim["patient_responsibility"],
-                "amount_collected": round(claim["patient_responsibility"] * random.uniform(0.5, 1.0), 2),
-                "collection_date": collection_date.isoformat(),
-                "payment_method": random.choice(["Credit Card", "Check", "Cash", "ACH", "Payment Plan"]),
-                "payment_reference": self.fake.bothify("PAY########"),
-                "status": random.choice(["Collected", "Partial", "Outstanding", "Written Off"]),
-                "notes": self.fake.sentence() if random.random() > 0.8 else None,
-                "created_at": datetime.now().isoformat(),
+                "id": collection_id,
+                "collectionID": self._business_id("COL"),
+                "claimID": claim["id"],
+                "date": collection_date.isoformat(),
+                "methodOfCollection": random.choice(self.COLLECTION_METHODS),
+                # Never exceeds the claim amount
+                "amountCollected": round(claim["amount"] * random.uniform(0.2, 1.0), 2),
+                "status": random.choice(self.COLLECTION_STATUSES),
             }
             self.collections.append(collection)
             collection_id += 1
@@ -470,8 +395,8 @@ class HealthcareDataGenerator:
         print("  - Generating claims...")
         self.generate_claims()
 
-        print("  - Generating claim activities...")
-        self.generate_claim_activities()
+        print("  - Generating activities...")
+        self.generate_activities()
 
         print("  - Generating collections...")
         self.generate_collections()
@@ -486,24 +411,26 @@ class HealthcareDataGenerator:
             "health_plans": len(self.health_plans),
             "encounters": len(self.encounters),
             "claims": len(self.claims),
-            "claim_activities": len(self.claim_activities),
+            "activities": len(self.activities),
             "collections": len(self.collections),
+        }
+
+    def _datasets(self) -> Dict[str, List[Dict]]:
+        return {
+            "users": self.users,
+            "facilities": self.facilities,
+            "health_plans": self.health_plans,
+            "encounters": self.encounters,
+            "claims": self.claims,
+            "activities": self.activities,
+            "collections": self.collections,
         }
 
     def _save_all(self):
         """Save all datasets to files or DuckDB."""
         os.makedirs(self.config.output_dir, exist_ok=True)
 
-        datasets = {
-            "users": self.users,
-            "facilities": self.facilities,
-            "health_plans": self.health_plans,
-            "encounters": self.encounters,
-            "claims": self.claims,
-            "claim_activities": self.claim_activities,
-            "collections": self.collections,
-        }
-
+        datasets = self._datasets()
         fmt = self.config.output_format
 
         if fmt == "duckdb":
@@ -534,7 +461,7 @@ class HealthcareDataGenerator:
 
         Schemas:
         - patient_mgmt (MSSQL): users, facilities, encounters
-        - claims_proc (Oracle): claims, claim_activities, collections, health_plans
+        - claims_proc (Oracle): claims, activities, collections, health_plans
         - s3_landing (S3 Raw): all tables as raw landing zone
         """
         if not DUCKDB_AVAILABLE:
@@ -548,7 +475,7 @@ class HealthcareDataGenerator:
         # Schema mapping - which tables go to which schema
         schema_mapping = {
             "patient_mgmt": ["users", "facilities", "encounters"],
-            "claims_proc": ["claims", "claim_activities", "collections", "health_plans"],
+            "claims_proc": ["claims", "activities", "collections", "health_plans"],
             "s3_landing": list(datasets.keys()),  # All tables in raw landing
         }
 
@@ -611,6 +538,7 @@ def main():
     parser.add_argument("--patients", type=int, default=100, help="Number of patients")
     parser.add_argument("--doctors", type=int, default=20, help="Number of doctors")
     parser.add_argument("--staff", type=int, default=15, help="Number of staff")
+    parser.add_argument("--payers", type=int, default=10, help="Number of payers")
     parser.add_argument("--facilities", type=int, default=10, help="Number of facilities")
     parser.add_argument("--encounters", type=int, default=200, help="Number of encounters")
     parser.add_argument("--claims", type=int, default=300, help="Number of claims")
@@ -647,6 +575,7 @@ def main():
         num_patients=args.patients,
         num_doctors=args.doctors,
         num_staff=args.staff,
+        num_payers=args.payers,
         num_facilities=args.facilities,
         num_encounters=args.encounters,
         num_claims=args.claims,

@@ -14,14 +14,17 @@ Generate realistic healthcare revenue cycle management (RCM) synthetic data for 
 
 ## Data Model
 
-The generator creates 7 interrelated datasets following Claimwise's healthcare RCM domain:
+The generator creates 7 interrelated datasets that match the Claimwise dbt
+pipeline seed schema (bronze layer) exactly — the output can be dropped into
+`dbt-pipeline/seeds/healthcare_data/` and the full pipeline (including all
+data-quality tests) builds green against it:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   Users     │     │  Facilities │     │ Health Plans│
-│ (Patients,  │     │             │     │             │
+│ (Patients,  │     │             │     │  (by Payer) │
 │  Doctors,   │     │             │     │             │
-│  Staff)     │     │             │     │             │
+│Staff,Payers)│     │             │     │             │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │
        └─────────┬─────────┘                   │
@@ -30,9 +33,8 @@ The generator creates 7 interrelated datasets following Claimwise's healthcare R
          ┌─────────────┐                       │
          │  Encounters │                       │
          │             │                       │
-         └──────┬──────┘                       │
-                │                              │
-                ▼                              │
+         └─────────────┘                       │
+                                               │
          ┌─────────────┐◄──────────────────────┘
          │   Claims    │
          │             │
@@ -41,8 +43,9 @@ The generator creates 7 interrelated datasets following Claimwise's healthcare R
        ┌────────┴────────┐
        ▼                 ▼
 ┌─────────────┐   ┌─────────────┐
-│   Claim     │   │ Collections │
-│ Activities  │   │             │
+│ Activities  │   │ Collections │
+│             │   │ (Approved   │
+│             │   │ claims only)│
 └─────────────┘   └─────────────┘
 ```
 
@@ -50,13 +53,16 @@ The generator creates 7 interrelated datasets following Claimwise's healthcare R
 
 | Dataset | Description | Key Fields |
 |---------|-------------|------------|
-| **users** | Doctors, staff, and patients | user_id, role, name, specialty, npi |
-| **facilities** | Healthcare facilities | facility_id, name, type, address, npi |
-| **health_plans** | Insurance plans | plan_id, payer_name, plan_type, deductible |
-| **encounters** | Patient visits | encounter_id, patient_id, provider_id, diagnosis_code |
-| **claims** | Medical claims | claim_id, encounter_id, billed_amount, status |
-| **claim_activities** | Claim lifecycle events | activity_id, claim_id, action, action_date |
-| **collections** | Payment collections | collection_id, claim_id, amount_collected |
+| **users** | Patients, doctors, staff, and payers | id, userID, userType, name, specialty, department, role |
+| **facilities** | Healthcare facilities | id, facilityID, name, location, contactInfo |
+| **health_plans** | Insurance plans by payer | id, healthPlanID, planName, payerID |
+| **encounters** | Patient visits | id, encounterID, patientID, doctorID, facilityID, date |
+| **claims** | Medical claims | id, claimID, patientID, payerID, status, amount |
+| **activities** | Claim lifecycle events | id, activityID, claimID, activityDate, activityType |
+| **collections** | Payment collections | id, collectionID, claimID, methodOfCollection, amountCollected |
+
+Business identifiers carry domain prefixes (CLM, COL, ENC, ACT, FAC, HP, and
+DR/PT/STF/PAY per user type), matching the pipeline's format-validation tests.
 
 ## Quick Start
 
@@ -136,6 +142,7 @@ python rcm_module.py \
 | `--patients` | 100 | Number of patients to generate |
 | `--doctors` | 20 | Number of doctors to generate |
 | `--staff` | 15 | Number of staff members |
+| `--payers` | 10 | Number of insurance payers |
 | `--facilities` | 10 | Number of healthcare facilities |
 | `--encounters` | 200 | Number of patient encounters |
 | `--claims` | 300 | Number of medical claims |
@@ -164,7 +171,7 @@ python rcm_module.py --format duckdb --duckdb-path ./data/demo.duckdb
 | Schema | Source System | Tables |
 |--------|---------------|--------|
 | `patient_mgmt` | MSSQL Patient Management | users, facilities, encounters |
-| `claims_proc` | Oracle Claims Processing | claims, claim_activities, collections, health_plans |
+| `claims_proc` | Oracle Claims Processing | claims, activities, collections, health_plans |
 | `s3_landing` | S3 Raw Landing Zone | All 7 tables (raw CSV equivalent) |
 
 **Querying the DuckDB database:**
@@ -177,7 +184,7 @@ duckdb ./output/rcm.duckdb
 SELECT * FROM main.schema_summary;
 
 -- Query patient management system (MSSQL)
-SELECT * FROM patient_mgmt.users WHERE role = 'Patient' LIMIT 10;
+SELECT * FROM patient_mgmt.users WHERE "userType" = 'PATIENT' LIMIT 10;
 
 -- Query claims processing system (Oracle)
 SELECT * FROM claims_proc.claims WHERE status = 'Approved';
@@ -187,13 +194,13 @@ SELECT * FROM s3_landing.encounters;
 
 -- Join across schemas (simulating cross-system analytics)
 SELECT
-    p.patient_name,
-    c.claim_id,
-    c.billed_amount,
+    p.name,
+    c."claimID",
+    c.amount,
     c.status
 FROM patient_mgmt.users p
-JOIN claims_proc.claims c ON p.user_id = c.patient_id
-WHERE p.role = 'Patient';
+JOIN claims_proc.claims c ON p.id = c."patientID"
+WHERE p."userType" = 'PATIENT';
 ```
 
 ## Docker Usage
@@ -230,12 +237,12 @@ docker-compose up notebook
 ### CSV/Parquet/JSON Output
 ```
 output/
-├── users.csv           # All users (patients, doctors, staff)
+├── users.csv           # All users (patients, doctors, staff, payers)
 ├── facilities.csv      # Healthcare facilities
 ├── health_plans.csv    # Insurance plans
 ├── encounters.csv      # Patient encounters
 ├── claims.csv          # Medical claims
-├── claim_activities.csv # Claim lifecycle events
+├── activities.csv      # Claim lifecycle events
 └── collections.csv     # Payment collections
 ```
 
@@ -249,7 +256,7 @@ output/
     │   └── encounters
     ├── claims_proc/           # Oracle - Claims Processing System
     │   ├── claims
-    │   ├── claim_activities
+    │   ├── activities
     │   ├── collections
     │   └── health_plans
     └── s3_landing/            # S3 - Raw Landing Zone
@@ -258,7 +265,7 @@ output/
         ├── health_plans
         ├── encounters
         ├── claims
-        ├── claim_activities
+        ├── activities
         └── collections
 ```
 
@@ -284,11 +291,13 @@ output/
 The generated data includes:
 
 - **Realistic Names & Addresses**: Using Faker library
-- **Valid Medical Codes**: ICD-10 diagnosis codes, CPT procedure codes
-- **Proper NPI Numbers**: 10-digit provider identifiers
-- **Logical Relationships**: Encounters link to claims, claims to activities
-- **Realistic Amounts**: Billed, allowed, and paid amounts follow industry patterns
-- **Proper Date Sequences**: Encounters → Claims → Activities → Collections
+- **Prefixed Medical Codes**: ICD- diagnosis codes and CPT- procedure codes
+- **Logical Relationships**: Claims reference patients and payers; activities and collections reference claims
+- **Business Rules Enforced**: Collections only against approved claims and never exceeding the claim amount; every claim has at least one activity
+- **Proper Date Sequences**: Claim activities fall inside the claim's created/updated window; no future dates
+
+The output passes the dbt pipeline's full test suite (uniqueness, not-null,
+accepted values, ID formats, referential integrity, reconciliation).
 
 ## License
 
