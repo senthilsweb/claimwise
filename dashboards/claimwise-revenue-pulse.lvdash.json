@@ -1,0 +1,1519 @@
+{
+  "datasets": [
+    {
+      "name": "ds_exec",
+      "displayName": "Executive Summary",
+      "queryLines": [
+        "select * from __CATALOG__.gold.mtr_executive_summary"
+      ]
+    },
+    {
+      "name": "ds_revenue_monthly",
+      "displayName": "Revenue Monthly",
+      "queryLines": [
+        "select month, billed_amount, collected_amount, collection_rate_pct, claim_count, denied_count from __CATALOG__.gold.mtr_revenue_monthly"
+      ]
+    },
+    {
+      "name": "ds_revenue_unpivot",
+      "displayName": "Billed vs Collected",
+      "queryLines": [
+        "select month, 'Billed' as measure, billed_amount as amount from __CATALOG__.gold.mtr_revenue_monthly\n",
+        "union all\n",
+        "select month, 'Collected' as measure, collected_amount as amount from __CATALOG__.gold.mtr_revenue_monthly"
+      ]
+    },
+    {
+      "name": "ds_funnel",
+      "displayName": "Claims Funnel",
+      "queryLines": [
+        "select claim_status, claim_count, total_amount, pct_of_claims from __CATALOG__.gold.mtr_claims_funnel"
+      ]
+    },
+    {
+      "name": "ds_payer",
+      "displayName": "Payer Scorecard",
+      "queryLines": [
+        "select payer_name, billed_amount, collected_amount, collection_rate_pct, denial_rate_pct, open_ar, claim_count, avg_claim_amount from __CATALOG__.gold.mtr_payer_scorecard"
+      ]
+    },
+    {
+      "name": "ds_aging",
+      "displayName": "AR Aging",
+      "queryLines": [
+        "select payer_name, aging_bucket, bucket_order, open_claim_count, open_ar_amount from __CATALOG__.gold.mtr_ar_aging"
+      ]
+    },
+    {
+      "name": "ds_dept",
+      "displayName": "Department Activity",
+      "queryLines": [
+        "select specialty, encounter_count, unique_patients, active_doctors, avg_duration_minutes, emergency_visits from __CATALOG__.gold.mtr_department_activity"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "page_exec",
+      "displayName": "Executive Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "txt_exec_header",
+            "textbox_spec": "# Claimwise Revenue Pulse\n**Revenue Cycle Management \u2014 Executive Overview** \u00b7 powered by the gold metric layer (`gold.mtr_*`), every KPI computed once in dbt"
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_billed",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "gross_billed",
+                      "expression": "SUM(`gross_billed`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Gross Billed"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "gross_billed",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "USD",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Gross Billed"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_collected",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "total_collected",
+                      "expression": "SUM(`total_collected`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Total Collected"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "total_collected",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "USD",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Total Collected"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_collection_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "collection_rate_pct",
+                      "expression": "SUM(`collection_rate_pct`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Collection Rate %"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "collection_rate_pct",
+                  "displayName": "Collection Rate %"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_denial_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "denial_rate_pct",
+                      "expression": "SUM(`denial_rate_pct`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Denial Rate %"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "denial_rate_pct",
+                  "displayName": "Denial Rate %"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_open_ar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "open_ar",
+                      "expression": "SUM(`open_ar`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Open AR"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "open_ar",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "USD",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Open AR"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_cycle_days",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_exec",
+                  "fields": [
+                    {
+                      "name": "avg_cycle_days",
+                      "expression": "SUM(`avg_cycle_days`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Claim Cycle (days)"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_cycle_days",
+                  "displayName": "Avg Claim Cycle (days)"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_billed_vs_collected",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_revenue_unpivot",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "measure",
+                      "expression": "`measure`"
+                    },
+                    {
+                      "name": "sum(amount)",
+                      "expression": "SUM(`amount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "frame": {
+                "showTitle": true,
+                "title": "Billed vs Collected by Month"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Month"
+                },
+                "y": {
+                  "fieldName": "sum(amount)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Amount (USD)"
+                },
+                "color": {
+                  "fieldName": "measure",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Measure"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_status_mix",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_funnel",
+                  "fields": [
+                    {
+                      "name": "claim_status",
+                      "expression": "`claim_status`"
+                    },
+                    {
+                      "name": "sum(claim_count)",
+                      "expression": "SUM(`claim_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "frame": {
+                "showTitle": true,
+                "title": "Claim Status Mix"
+              },
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(claim_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Claims"
+                },
+                "color": {
+                  "fieldName": "claim_status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Status"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 8,
+            "width": 2,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_ar_aging_exec",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_aging",
+                  "fields": [
+                    {
+                      "name": "aging_bucket",
+                      "expression": "`aging_bucket`"
+                    },
+                    {
+                      "name": "sum(open_ar_amount)",
+                      "expression": "SUM(`open_ar_amount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Open AR by Aging Bucket"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "aging_bucket",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Days Outstanding"
+                },
+                "y": {
+                  "fieldName": "sum(open_ar_amount)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Open AR (USD)"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "page_ops",
+      "displayName": "Claims Operations",
+      "layout": [
+        {
+          "widget": {
+            "name": "txt_ops_header",
+            "textbox_spec": "# Claims Operations\n**Lifecycle funnel, denials, and monthly workload**"
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_funnel",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_funnel",
+                  "fields": [
+                    {
+                      "name": "claim_status",
+                      "expression": "`claim_status`"
+                    },
+                    {
+                      "name": "sum(claim_count)",
+                      "expression": "SUM(`claim_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Claims by Lifecycle Status"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "claim_status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Status"
+                },
+                "y": {
+                  "fieldName": "sum(claim_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Claims"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_denied_monthly",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_revenue_monthly",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "sum(denied_count)",
+                      "expression": "SUM(`denied_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Denied Claims by Month"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Month"
+                },
+                "y": {
+                  "fieldName": "sum(denied_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Denied"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_claim_volume",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_revenue_monthly",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "sum(claim_count)",
+                      "expression": "SUM(`claim_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "frame": {
+                "showTitle": true,
+                "title": "Claim Volume by Month"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Month"
+                },
+                "y": {
+                  "fieldName": "sum(claim_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Claims"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "table_funnel_amounts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_funnel",
+                  "fields": [
+                    {
+                      "name": "claim_status",
+                      "expression": "`claim_status`"
+                    },
+                    {
+                      "name": "claim_count",
+                      "expression": "`claim_count`"
+                    },
+                    {
+                      "name": "total_amount",
+                      "expression": "`total_amount`"
+                    },
+                    {
+                      "name": "pct_of_claims",
+                      "expression": "`pct_of_claims`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Status Detail (count, amount, share %)"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "claim_status",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 0,
+                    "title": "Status",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Status"
+                  },
+                  {
+                    "fieldName": "claim_count",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 1,
+                    "title": "Claims",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Claims"
+                  },
+                  {
+                    "fieldName": "total_amount",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 2,
+                    "title": "Amount (USD)",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Amount (USD)",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "pct_of_claims",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 3,
+                    "title": "% of Claims",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "% of Claims",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "condensed": true,
+              "withRowNumber": false,
+              "invisibleColumns": [],
+              "paginationSize": "default"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 8,
+            "width": 3,
+            "height": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "page_payers",
+      "displayName": "Payers & Providers",
+      "layout": [
+        {
+          "widget": {
+            "name": "txt_payer_header",
+            "textbox_spec": "# Payers & Providers\n**Who owes what, and where the clinical volume is**"
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "table_payer_scorecard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_payer",
+                  "fields": [
+                    {
+                      "name": "payer_name",
+                      "expression": "`payer_name`"
+                    },
+                    {
+                      "name": "billed_amount",
+                      "expression": "`billed_amount`"
+                    },
+                    {
+                      "name": "collected_amount",
+                      "expression": "`collected_amount`"
+                    },
+                    {
+                      "name": "collection_rate_pct",
+                      "expression": "`collection_rate_pct`"
+                    },
+                    {
+                      "name": "denial_rate_pct",
+                      "expression": "`denial_rate_pct`"
+                    },
+                    {
+                      "name": "open_ar",
+                      "expression": "`open_ar`"
+                    },
+                    {
+                      "name": "claim_count",
+                      "expression": "`claim_count`"
+                    },
+                    {
+                      "name": "avg_claim_amount",
+                      "expression": "`avg_claim_amount`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Payer Scorecard"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "payer_name",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 0,
+                    "title": "Payer",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Payer"
+                  },
+                  {
+                    "fieldName": "billed_amount",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 1,
+                    "title": "Billed",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Billed",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "collected_amount",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 2,
+                    "title": "Collected",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Collected",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "collection_rate_pct",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 3,
+                    "title": "Collection %",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Collection %",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "denial_rate_pct",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 4,
+                    "title": "Denial %",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Denial %",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "open_ar",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 5,
+                    "title": "Open AR",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Open AR",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "claim_count",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 6,
+                    "title": "Claims",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Claims"
+                  },
+                  {
+                    "fieldName": "avg_claim_amount",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 7,
+                    "title": "Avg Claim",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Avg Claim",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "condensed": true,
+              "withRowNumber": false,
+              "invisibleColumns": [],
+              "paginationSize": "default"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_ar_by_payer",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_aging",
+                  "fields": [
+                    {
+                      "name": "payer_name",
+                      "expression": "`payer_name`"
+                    },
+                    {
+                      "name": "aging_bucket",
+                      "expression": "`aging_bucket`"
+                    },
+                    {
+                      "name": "sum(open_ar_amount)",
+                      "expression": "SUM(`open_ar_amount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Open AR by Payer and Aging Bucket"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "payer_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Payer"
+                },
+                "y": {
+                  "fieldName": "sum(open_ar_amount)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Open AR (USD)"
+                },
+                "color": {
+                  "fieldName": "aging_bucket",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Days Outstanding"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_dept_volume",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_dept",
+                  "fields": [
+                    {
+                      "name": "specialty",
+                      "expression": "`specialty`"
+                    },
+                    {
+                      "name": "sum(encounter_count)",
+                      "expression": "SUM(`encounter_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Encounters by Specialty"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "specialty",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Specialty"
+                },
+                "y": {
+                  "fieldName": "sum(encounter_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Encounters"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "table_dept_detail",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_dept",
+                  "fields": [
+                    {
+                      "name": "specialty",
+                      "expression": "`specialty`"
+                    },
+                    {
+                      "name": "encounter_count",
+                      "expression": "`encounter_count`"
+                    },
+                    {
+                      "name": "unique_patients",
+                      "expression": "`unique_patients`"
+                    },
+                    {
+                      "name": "active_doctors",
+                      "expression": "`active_doctors`"
+                    },
+                    {
+                      "name": "avg_duration_minutes",
+                      "expression": "`avg_duration_minutes`"
+                    },
+                    {
+                      "name": "emergency_visits",
+                      "expression": "`emergency_visits`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Department Activity Detail"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "specialty",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "string",
+                    "displayAs": "string",
+                    "visible": true,
+                    "order": 0,
+                    "title": "Specialty",
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Specialty"
+                  },
+                  {
+                    "fieldName": "encounter_count",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 1,
+                    "title": "Encounters",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Encounters"
+                  },
+                  {
+                    "fieldName": "unique_patients",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 2,
+                    "title": "Patients",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Patients"
+                  },
+                  {
+                    "fieldName": "active_doctors",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 3,
+                    "title": "Doctors",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Doctors"
+                  },
+                  {
+                    "fieldName": "avg_duration_minutes",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "float",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 4,
+                    "title": "Avg Minutes",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Avg Minutes",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "emergency_visits",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "type": "integer",
+                    "displayAs": "number",
+                    "visible": true,
+                    "order": 5,
+                    "title": "Emergency",
+                    "allowSearch": false,
+                    "alignContent": "right",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "displayName": "Emergency"
+                  }
+                ]
+              },
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "condensed": true,
+              "withRowNumber": false,
+              "invisibleColumns": [],
+              "paginationSize": "default"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ]
+}
