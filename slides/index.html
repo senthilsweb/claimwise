@@ -266,6 +266,7 @@
 
     .pipeline-icon.s3 { background: linear-gradient(135deg, #569A31 0%, #3d7a1f 100%); }
     .pipeline-icon.snowflake { background: linear-gradient(135deg, #29B5E8 0%, #1a8fc2 100%); }
+    .pipeline-icon.databricks { background: linear-gradient(135deg, #FF3621 0%, #cc2a19 100%); }
     .pipeline-icon.dashboard { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
 
     .pipeline-label {
@@ -717,7 +718,7 @@
             </div>
             <div class="card" style="flex: 1; padding: 0.75rem;">
               <h4 style="margin: 0; font-size: 0.8em;">Modern Lakehouse</h4>
-              <p style="margin: 0; font-size: 0.65em;">Raw - Staging - Intermediate - Marts</p>
+              <p style="margin: 0; font-size: 0.65em;">Bronze - Silver - Gold Medallion</p>
             </div>
           </div>
 
@@ -754,7 +755,7 @@
             </div>
             <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
               <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">2. Lakehouse Data Model</h4>
-              <p style="margin: 0; font-size: 0.65em;">Sources - Staging - Intermediate - Marts</p>
+              <p style="margin: 0; font-size: 0.65em;">Bronze - Silver - Gold Medallion</p>
             </div>
             <div class="card" style="margin-bottom: 0.5rem; padding: 0.6rem;">
               <h4 style="margin: 0 0 0.2rem 0; color: var(--color-accent); font-size: 0.8em;">3. Business Glossary</h4>
@@ -848,17 +849,17 @@
           </div>
           <span class="pipeline-arrow">→</span>
           <div class="pipeline-node">
-            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
-            <span class="pipeline-label">RAW</span>
+            <div class="pipeline-icon databricks"><span class="iconify" data-icon="simple-icons:databricks"></span></div>
+            <span class="pipeline-label">BRONZE</span>
           </div>
           <span class="pipeline-arrow">→</span>
           <div class="pipeline-node">
-            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
-            <span class="pipeline-label">STAGING</span>
+            <div class="pipeline-icon databricks"><span class="iconify" data-icon="simple-icons:databricks"></span></div>
+            <span class="pipeline-label">SILVER</span>
           </div>
           <span class="pipeline-arrow">→</span>
           <div class="pipeline-node">
-            <div class="pipeline-icon snowflake"><span class="iconify" data-icon="simple-icons:snowflake"></span></div>
+            <div class="pipeline-icon databricks"><span class="iconify" data-icon="simple-icons:databricks"></span></div>
             <span class="pipeline-label">INTERMEDIATE</span>
           </div>
           <span class="pipeline-arrow">→</span>
@@ -872,7 +873,7 @@
             <div class="marts-row">
               <div class="mart-mini">Clinical</div>
             </div>
-            <span class="pipeline-label" style="margin-top: 0.25rem;">MARTS</span>
+            <span class="pipeline-label" style="margin-top: 0.25rem;">GOLD</span>
           </div>
           <span class="pipeline-arrow">→</span>
           <div class="pipeline-node">
@@ -912,7 +913,7 @@
         </div>
 
         <div class="card card-highlight" style="padding: 0.6rem;">
-          <h4 style="margin: 0 0 0.4rem 0; font-size: 0.8em;">Lakehouse - Raw Layer</h4>
+          <h4 style="margin: 0 0 0.4rem 0; font-size: 0.8em;">Lakehouse - Bronze Layer</h4>
           <ul style="margin: 0; padding-left: 1.2em; font-size: 0.7em;">
             <li>CSV files stored in S3 buckets</li>
             <li>Optional external tables can reference CSV files without moving data</li>
@@ -932,12 +933,12 @@
       </section>
 
       <!-- ==========================================
-           SLIDE 5: Staging Layer - HTML Data Models
+           SLIDE 5: Silver Layer - HTML Data Models
            ========================================== -->
       <section data-background-color="#ffffff">
         <span class="label">Lakehouse</span>
-        <h2>Staging Layer - Data Models</h2>
-        <p class="subtitle" style="margin-bottom: 0.4rem;">Base tables materialized as views against raw data</p>
+        <h2>Silver Layer - Staging Models</h2>
+        <p class="subtitle" style="margin-bottom: 0.4rem;">Base tables materialized as views against bronze data</p>
 
         <!-- HTML-BASED DATA MODEL TABLES -->
         <div class="model-grid">
@@ -1035,16 +1036,16 @@
 
         <div class="slide-footer">
           <span>Healthcare RCM Analytics</span>
-          <span>Staging Layer</span>
+          <span>Silver Layer</span>
         </div>
       </section>
 
       <!-- ==========================================
-           SLIDE 6: Intermediate Layer
+           SLIDE 6: Intermediate (Silver)
            ========================================== -->
       <section data-background-color="#ffffff">
         <span class="label">Lakehouse</span>
-        <h2>Intermediate Layer - Persona Views</h2>
+        <h2>Silver Layer - Intermediate Persona Views</h2>
         <p class="subtitle" style="margin-bottom: 0.4rem;">Purpose-built transformations organized by user personas</p>
 
         <!-- HTML-BASED PERSONA TABLES -->
@@ -1119,16 +1120,16 @@
 
         <div class="slide-footer">
           <span>Healthcare RCM Analytics</span>
-          <span>Intermediate Layer</span>
+          <span>Intermediate (Silver)</span>
         </div>
       </section>
 
       <!-- ==========================================
-           SLIDE 7: Marts Layer - Star Schema
+           SLIDE 7: Gold Layer - Star Schema
            ========================================== -->
       <section data-background-color="#ffffff">
         <span class="label">Lakehouse</span>
-        <h2>Marts Layer - Star Schema</h2>
+        <h2>Gold Layer - Star Schema</h2>
         <p class="subtitle" style="margin-bottom: 0.3rem;">Kimball Dimensional Modelling with 8 dimensions and 3 fact tables</p>
 
         <!-- HTML-BASED STAR SCHEMA -->
@@ -1235,7 +1236,7 @@
 
         <div class="slide-footer">
           <span>Healthcare RCM Analytics</span>
-          <span>Marts Layer</span>
+          <span>Gold Layer</span>
         </div>
       </section>
 
@@ -1386,7 +1387,7 @@
 
           <!-- Staging Column -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
-            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Staging</div>
+            <div style="font-size: 0.55em; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 0.2rem;">Silver</div>
             <div class="lineage-node staging">stg_activities</div>
             <div class="lineage-node staging">stg_claims</div>
             <div class="lineage-node staging">stg_collections</div>
@@ -1447,6 +1448,112 @@
         <div class="slide-footer">
           <span>Healthcare RCM Analytics</span>
           <span>Lineage & Observability</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 10b: Unity Catalog Lineage (live capture)
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Observability</span>
+        <h2>Unity Catalog Lineage - Live from Databricks</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Captured from the production run - Databricks records lineage automatically from the SQL, no configuration needed</p>
+
+        <div class="columns columns-2" style="gap: 0.75rem; align-items: flex-start;">
+          <div class="card" style="padding: 0.5rem;">
+            <img src="assets/uc-lineage-fct-claims.png" alt="Unity Catalog table lineage graph for workspace.gold.fct_claims" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+            <p style="margin: 0.35rem 0 0 0; font-size: 0.6em; color: var(--color-text-muted); text-align: center;"><strong>Table lineage</strong> - bronze.claims and bronze.users flow through silver staging and intermediate views into gold.fct_claims</p>
+          </div>
+          <div class="card" style="padding: 0.5rem;">
+            <img src="assets/uc-lineage-column-collections.png" alt="Unity Catalog column-level lineage for fct_collections.collected_amount" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+            <p style="margin: 0.35rem 0 0 0; font-size: 0.6em; color: var(--color-text-muted); text-align: center;"><strong>Column lineage</strong> - bronze.collections.amountCollected traced field-by-field to gold.fct_collections.collected_amount</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 0.6rem; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, rgba(8, 145, 178, 0.08) 0%, rgba(5, 150, 105, 0.05) 100%); border-color: rgba(8, 145, 178, 0.2);">
+          <p style="margin: 0; font-size: 0.65em; text-align: center;">Every dbt run refreshes this graph - impact analysis and root-cause tracing come free with the platform</p>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Unity Catalog Lineage</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 10c: Live Dashboard (Claimwise Revenue Pulse)
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Analytics</span>
+        <h2>Claimwise Revenue Pulse - Live Dashboard</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">Databricks AI/BI dashboard, deployed as code (make dashboard) - every widget reads the gold metric layer</p>
+
+        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <div class="card" style="flex: 1.7; padding: 0.5rem;">
+            <img src="assets/dash-exec-overview.png" alt="Executive Overview page: KPI counters, billed vs collected trend, claim status mix" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+            <p style="margin: 0.35rem 0 0 0; font-size: 0.6em; color: var(--color-text-muted); text-align: center;"><strong>Executive Overview</strong> - KPI cards, billed vs collected trend, claim status mix, AR aging</p>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="card" style="padding: 0.5rem;">
+              <img src="assets/dash-payers.png" alt="Payers and Providers page: payer scorecard table and open AR by payer" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+              <p style="margin: 0.3rem 0 0 0; font-size: 0.55em; color: var(--color-text-muted); text-align: center;"><strong>Payers & Providers</strong> - scorecard and open AR by payer</p>
+            </div>
+            <div class="card" style="padding: 0.5rem;">
+              <img src="assets/dash-claims-ops.png" alt="Claims Operations page: lifecycle funnel and denied claims by month" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+              <p style="margin: 0.3rem 0 0 0; font-size: 0.55em; color: var(--color-text-muted); text-align: center;"><strong>Claims Operations</strong> - funnel, denials, volume, and status detail</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Live Dashboard</span>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 10d: Metric Layer (Semantic Layer)
+           ========================================== -->
+      <section data-background-color="#ffffff">
+        <span class="label">Semantic Layer</span>
+        <h2>Metric Layer - One Definition, Every Consumer</h2>
+        <p class="subtitle" style="margin-bottom: 0.5rem;">KPI math lives in gold metric models (gold.mtr_*) plus a Unity Catalog metric view - consumers only select, never recompute</p>
+
+        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-bottom: 0.6rem;">
+              <div class="card" style="padding: 0.5rem; text-align: center; flex: 1;">
+                <h4 style="margin: 0; font-size: 0.65em;">Gold Facts</h4>
+                <p style="margin: 0; font-size: 0.5em; color: var(--color-text-muted);">fct_claims, fct_collections, fct_encounters</p>
+              </div>
+              <span style="color: #94a3b8; font-size: 1.2rem;">→</span>
+              <div class="card" style="padding: 0.5rem; text-align: center; flex: 1.3; border-color: var(--color-accent);">
+                <h4 style="margin: 0; font-size: 0.65em; color: var(--color-accent);">Metric Layer</h4>
+                <p style="margin: 0; font-size: 0.5em; color: var(--color-text-muted);">6 mtr_* dbt models + UC metric view claimwise_metrics</p>
+                <p style="margin: 0; font-size: 0.5em; color: var(--color-text-muted);">collection rate · denial rate · open AR · aging · cycle days</p>
+              </div>
+              <span style="color: #94a3b8; font-size: 1.2rem;">→</span>
+              <div class="card" style="padding: 0.5rem; text-align: center; flex: 1;">
+                <h4 style="margin: 0; font-size: 0.65em;">Consumers</h4>
+                <p style="margin: 0; font-size: 0.5em; color: var(--color-text-muted);">Dashboard · Genie · ad-hoc SQL</p>
+              </div>
+            </div>
+
+            <div class="card" style="padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, rgba(8, 145, 178, 0.08) 0%, rgba(5, 150, 105, 0.05) 100%); border-color: rgba(8, 145, 178, 0.2);">
+              <p style="margin: 0 0 0.35rem 0; font-size: 0.62em;"><strong>Consistency:</strong> every KPI is computed once in the metric layer, so the dashboard, Genie, and ad-hoc SQL can never disagree on a number.</p>
+              <p style="margin: 0; font-size: 0.62em;"><strong>Change once, ship everywhere:</strong> metrics are version-controlled, tested dbt models - update a definition in one file and every consumer follows, with no per-report rework.</p>
+            </div>
+          </div>
+
+          <div class="card" style="flex: 1.25; padding: 0.5rem;">
+            <img src="assets/uc-lineage-metric-e2e.png" alt="Unity Catalog lineage from silver staging through gold facts to mtr_executive_summary and its dashboard consumer" style="width: 100%; display: block; border-radius: 6px; border: 1px solid var(--color-border-light);">
+            <p style="margin: 0.35rem 0 0 0; font-size: 0.55em; color: var(--color-text-muted); text-align: center;"><strong>Real end-to-end lineage</strong> - silver → gold facts → mtr_executive_summary → dashboard (assets that read data)</p>
+          </div>
+        </div>
+
+        <div class="slide-footer">
+          <span>Healthcare RCM Analytics</span>
+          <span>Metric Layer</span>
         </div>
       </section>
 
@@ -1848,7 +1955,7 @@
         <div class="value-grid">
           <div class="value-card">
             <h4>Unified Data Model</h4>
-            <p>Raw - Staging - Intermediate - Marts</p>
+            <p>Bronze - Silver - Gold Medallion</p>
           </div>
           <div class="value-card">
             <h4>Data Quality</h4>
