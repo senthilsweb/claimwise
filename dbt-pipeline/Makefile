@@ -8,6 +8,11 @@ TARGET ?= dev
 ENV := set -a; [ -f .env ] && . ./.env; set +a;
 DBT := $(ENV) dbt
 
+# Lineage-emitting dbt: seed/run/test/build go through the dbt-ol wrapper
+# (openlineage-dbt) when ENABLE_OPENLINEAGE=true; deps/debug/docs/clean have
+# no lineage and always use plain dbt.
+DBT_OL := $(ENV) [ "$${ENABLE_OPENLINEAGE:-false}" = "true" ] && _dbt=dbt-ol || _dbt=dbt; $$_dbt
+
 .PHONY: help setup deps debug seed run test build rebuild docs report daily clean clean-db docker-build docker-daily
 
 help:
@@ -22,7 +27,8 @@ help:
 	@echo "  rebuild       dbt build --full-refresh"
 	@echo "  docs          dbt docs generate"
 	@echo "  report        Elementary HTML report -> reports/"
-	@echo "  daily         build (+ elementary run & report when TARGET=prod)"
+	@echo "  daily         build (+ elementary when TARGET=prod & ENABLE_ELEMENTARY=true)"
+	@echo "  (seed/run/test/build emit OpenLineage when ENABLE_OPENLINEAGE=true)"
 	@echo "  clean         dbt clean + rm target/"
 	@echo "  clean-db      remove rcm.duckdb"
 	@echo "  docker-build  build the prod runner image"
@@ -38,13 +44,13 @@ debug:
 	@$(DBT) debug --target $(TARGET)
 
 seed:
-	@$(DBT) seed --target $(TARGET)
+	@$(DBT_OL) seed --target $(TARGET)
 
 run:
-	@$(DBT) run --target $(TARGET)
+	@$(DBT_OL) run --target $(TARGET)
 
 test:
-	@$(DBT) test --target $(TARGET)
+	@$(DBT_OL) test --target $(TARGET)
 
 # seed runs first: silver models read seeds as sources (no DAG edge), so a
 # fresh database needs the bronze tables loaded before dbt build. Seeds are
@@ -52,11 +58,11 @@ test:
 # CTAS statements (no DAG edge means no ordering) and can capture an empty
 # source table mid-reload.
 build: seed
-	@$(DBT) build --exclude-resource-type seed --target $(TARGET)
+	@$(DBT_OL) build --exclude-resource-type seed --target $(TARGET)
 
 # full-refresh: recreate all tables and incremental models from scratch
 rebuild: seed
-	@$(DBT) build --exclude-resource-type seed --full-refresh --target $(TARGET)
+	@$(DBT_OL) build --exclude-resource-type seed --full-refresh --target $(TARGET)
 
 # deploy + publish the AI/BI dashboard (prod/Databricks only)
 dashboard:
@@ -75,11 +81,11 @@ report:
 	@$(ENV) edr report --profiles-dir . --profile-target $(TARGET) --file-path reports/elementary_report.html
 
 daily: build
-	@if [ "$(TARGET)" = "prod" ]; then \
-		$(DBT) run --select elementary --target $(TARGET) && \
+	@$(ENV) if [ "$(TARGET)" = "prod" ] && [ "$${ENABLE_ELEMENTARY:-false}" = "true" ]; then \
+		dbt run --select elementary --target $(TARGET) && \
 		$(MAKE) TARGET=$(TARGET) report; \
 	else \
-		echo "daily: skipping Elementary (TARGET=$(TARGET))"; \
+		echo "daily: skipping Elementary (TARGET=$(TARGET), ENABLE_ELEMENTARY=$${ENABLE_ELEMENTARY:-false})"; \
 	fi
 
 clean:

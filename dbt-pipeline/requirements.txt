@@ -5,5 +5,8 @@ dbt-databricks>=1.9,<2.0
 # Phase 2: Snowflake
 # dbt-snowflake>=1.9,<2.0
 
-# Elementary CLI (report generation; prod/Databricks)
+# Elementary CLI (report generation; prod/Databricks; ENABLE_ELEMENTARY=true)
 # elementary-data[databricks]
+
+# OpenLineage emitter — dbt-ol wrapper (needed when ENABLE_OPENLINEAGE=true)
+# openlineage-dbt

@@ -43,8 +43,9 @@ models:
   elementary:
     ## elementary models will be created in the schema '<your_schema>_elementary'
     +schema: "elementary"
-    ## Elementary does not support DuckDB — enable on prod (Databricks) only
-    +enabled: "{{ target.name == 'prod' }}"
+    ## Elementary does not support DuckDB — prod (Databricks) only, and off
+    ## unless ENABLE_ELEMENTARY=true is set (default: disabled)
+    +enabled: "{{ target.name == 'prod' and env_var('ENABLE_ELEMENTARY', 'false') == 'true' }}"
 
 # Simple seed configuration — seeds land in the bronze layer
 seeds:

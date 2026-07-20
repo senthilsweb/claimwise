@@ -45,9 +45,15 @@ or in Docker:
 make docker-build && make docker-daily
 ```
 
-The Elementary observability report is written to
-`reports/elementary_report.html`. Elementary runs on prod only (it does not
-support DuckDB).
+## Observability (both disabled by default)
+
+- **Elementary** — set `ENABLE_ELEMENTARY=true` in `.env`. Prod only (it does
+  not support DuckDB); the report is written to `reports/elementary_report.html`.
+- **OpenLineage** — set `ENABLE_OPENLINEAGE=true` and `OPENLINEAGE_URL` (e.g. a
+  Marquez endpoint) in `.env`, and `pip install openlineage-dbt` (the Docker
+  image already includes it). `seed`, `run`, `test`, and `build` then go through
+  the `dbt-ol` wrapper and emit lineage events. Optional: `OPENLINEAGE_NAMESPACE`
+  (default `claimwise`) and `OPENLINEAGE_API_KEY`.
 
 ## Make Targets
 
@@ -58,7 +64,7 @@ support DuckDB).
 | `seed` | Load bronze seed data |
 | `build` | dbt build (run + test) |
 | `test` | Run dbt tests |
-| `daily` | Full daily pipeline (seed, build, report on prod) |
+| `daily` | Full daily pipeline (+ Elementary on prod when `ENABLE_ELEMENTARY=true`) |
 | `report` | Generate Elementary report (prod only) |
 | `docker-build` | Build the prod runner image |
 | `docker-daily` | Run the daily pipeline in Docker |

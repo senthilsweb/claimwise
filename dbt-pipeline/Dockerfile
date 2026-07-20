@@ -1,4 +1,4 @@
-# Production runner: dbt + Databricks adapter + Elementary CLI.
+# Production runner: dbt + Databricks adapter + Elementary CLI + OpenLineage.
 # Dev runs bare on DuckDB — this image is only used against Databricks.
 FROM python:3.11-slim
 
@@ -11,7 +11,7 @@ RUN apt-get update \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir 'elementary-data[databricks]'
+    && pip install --no-cache-dir 'elementary-data[databricks]' openlineage-dbt
 
 # Project files
 COPY dbt_project.yml profiles.yml packages.yml ./

@@ -3,8 +3,20 @@
 # Commands: daily (default) | build | run | test | seed | dbt <args>
 
 DBT_TARGET="${DBT_TARGET:-prod}"
-ENABLE_ELEMENTARY="${ENABLE_ELEMENTARY:-true}"
+ENABLE_ELEMENTARY="${ENABLE_ELEMENTARY:-false}"
+ENABLE_OPENLINEAGE="${ENABLE_OPENLINEAGE:-false}"
 DBT_FLAGS=(--profiles-dir . --project-dir .)
+
+# Lineage-emitting dbt: seed/run/test/build go through the dbt-ol wrapper
+# when ENABLE_OPENLINEAGE=true; deps has no lineage and always uses plain dbt.
+DBT_BIN=dbt
+if [ "$ENABLE_OPENLINEAGE" = "true" ]; then
+    if [ -z "$OPENLINEAGE_URL" ]; then
+        echo "ERROR: ENABLE_OPENLINEAGE=true but OPENLINEAGE_URL is not set" >&2
+        exit 1
+    fi
+    DBT_BIN=dbt-ol
+fi
 
 # --- Validate required Databricks credentials for the prod target ---
 if [ "$DBT_TARGET" = "prod" ]; then
@@ -24,7 +36,8 @@ echo "=============================================="
 echo " dbt runner"
 echo "   target:     $DBT_TARGET"
 echo "   command:    $COMMAND"
-echo "   elementary: $ENABLE_ELEMENTARY"
+echo "   elementary:  $ENABLE_ELEMENTARY"
+echo "   openlineage: $ENABLE_OPENLINEAGE${OPENLINEAGE_URL:+ ($OPENLINEAGE_URL)}"
 echo "=============================================="
 
 case "$COMMAND" in
@@ -35,12 +48,12 @@ case "$COMMAND" in
 
         # Seed first: silver models read seeds as sources (no DAG edge),
         # so a fresh database needs the bronze tables before dbt build.
-        dbt seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
+        "$DBT_BIN" seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
 
         # Record build failure but continue so observability still runs.
         # Seeds are excluded here: re-running them inside build races the
         # silver CTAS statements (no DAG edge = no ordering guarantee).
-        dbt build --exclude-resource-type seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
+        "$DBT_BIN" build --exclude-resource-type seed --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
 
         if [ "$ENABLE_ELEMENTARY" = "true" ]; then
             dbt run --select elementary --target "$DBT_TARGET" "${DBT_FLAGS[@]}" || FAILED=1
@@ -57,7 +70,7 @@ case "$COMMAND" in
 
     build|run|test|seed)
         # shellcheck disable=SC2086
-        dbt "$COMMAND" --target "$DBT_TARGET" "${DBT_FLAGS[@]}" $EXTRA_ARGS
+        "$DBT_BIN" "$COMMAND" --target "$DBT_TARGET" "${DBT_FLAGS[@]}" $EXTRA_ARGS
         exit $?
         ;;
 
