@@ -107,6 +107,13 @@ class HealthcareDataGenerator:
     ]
 
     CLAIM_STATUSES = ["Submitted", "In Review", "Approved", "Denied", "Appealed"]
+    # Realistic RCM mix: most claims resolve to Approved; a meaningful slice
+    # is Denied; only a small tail is still mid-cycle at any snapshot.
+    CLAIM_STATUS_WEIGHTS = [0.07, 0.10, 0.65, 0.15, 0.03]
+    # Claims created in this many days before end_date have not had time to
+    # fully resolve yet, so they skew toward the early-cycle statuses.
+    RECENT_CLAIM_WINDOW_DAYS = 45
+    RECENT_CLAIM_STATUS_WEIGHTS = [0.45, 0.35, 0.10, 0.05, 0.05]
 
     ACTIVITY_TYPES = [
         "Submission", "Review", "Documentation Request",
@@ -287,6 +294,9 @@ class HealthcareDataGenerator:
             raise ValueError("Must generate users before claims")
 
         self.claims = []
+        config_end = self.config.end_date
+        config_end = config_end.date() if isinstance(config_end, datetime) else config_end
+        recency_cutoff = config_end - timedelta(days=self.RECENT_CLAIM_WINDOW_DAYS)
 
         for i in range(1, self.config.num_claims + 1):
             date_created = self._random_date()
@@ -294,12 +304,21 @@ class HealthcareDataGenerator:
                 start=datetime.combine(date_created, datetime.min.time())
             )
 
+            # Recently created claims have not had time to fully resolve;
+            # older claims follow the overall resolved-claim mix.
+            weights = (
+                self.RECENT_CLAIM_STATUS_WEIGHTS
+                if date_created > recency_cutoff
+                else self.CLAIM_STATUS_WEIGHTS
+            )
+            status = random.choices(self.CLAIM_STATUSES, weights=weights, k=1)[0]
+
             claim = {
                 "id": i,
                 "claimID": self._business_id("CLM"),
                 "patientID": random.choice(self.patient_ids),
                 "payerID": random.choice(self.payer_ids),
-                "status": random.choice(self.CLAIM_STATUSES),
+                "status": status,
                 "dateCreated": date_created.isoformat(),
                 "dateUpdated": date_updated.isoformat(),
                 "amount": round(random.uniform(50.0, 5000.0), 2),
@@ -366,8 +385,13 @@ class HealthcareDataGenerator:
                 "claimID": claim["id"],
                 "date": collection_date.isoformat(),
                 "methodOfCollection": random.choice(self.COLLECTION_METHODS),
-                # Never exceeds the claim amount
-                "amountCollected": round(claim["amount"] * random.uniform(0.2, 1.0), 2),
+                # Never exceeds the claim amount. Payers mostly pay in full;
+                # triangular distribution puts the common case near 100% with
+                # a partial-payment tail down to 40%, instead of a flat
+                # uniform spread that made "Approved" claims look underpaid.
+                "amountCollected": round(
+                    claim["amount"] * random.triangular(0.4, 1.0, 0.95), 2
+                ),
                 "status": random.choice(self.COLLECTION_STATUSES),
             }
             self.collections.append(collection)
