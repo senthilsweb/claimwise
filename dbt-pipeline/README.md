@@ -96,9 +96,19 @@ openspec/         # change proposals and specs
 
 ```bash
 pip install -r data-generator/requirements.txt
-python data-generator/rcm_module.py --patients 100 --claims 300   # CSV to ./output
-python data-generator/rcm_module.py --format duckdb               # or straight to DuckDB
+
+# The checked-in seeds (seeds/healthcare_data/) were generated with:
+python data-generator/rcm_module.py --patients 1500 --claims 5000 --encounters 8000 \
+  --start-date 2024-08-01 --end-date 2026-07-29 --seed 42 \
+  --output-dir seeds/healthcare_data
+
+python data-generator/rcm_module.py --format duckdb   # or straight to DuckDB
 ```
+
+Claim status and collection recovery are weighted, not uniform random — see
+"Realistic distributions" in `data-generator/README.md` before assuming a
+denial or collection rate is arbitrary; it is meant to resemble a real RCM
+book of business (~65% Approved, ~48% collection rate).
 
 See `data-generator/README.md` for options. Slides: open `slides/index.html`.
 

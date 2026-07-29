@@ -276,7 +276,41 @@ output/
 | **Demo** | 50 | 10 | 100 | 150 | ~1,500 |
 | **Small** | 100 | 20 | 200 | 300 | ~3,000 |
 | **Medium** | 500 | 50 | 1,000 | 1,500 | ~15,000 |
+| **Checked-in seeds** | 1,500 | 50 | 8,000 | 5,000 | ~32,000 |
 | **Large** | 2,000 | 100 | 5,000 | 7,500 | ~75,000 |
+
+The **checked-in seeds** row is what actually lives in
+`dbt-pipeline/seeds/healthcare_data/` today — generated with `--seed 42`
+over `--start-date 2024-08-01 --end-date 2026-07-29`. The earlier default
+(100 patients / 300 claims / one year) left AR aging buckets and the
+monthly revenue trend too thin to demo meaningfully — most aging buckets
+were empty and only ~2 years back. A larger, more recent volume was
+generated so the gold metric layer (`mtr_ar_aging`, `mtr_revenue_monthly`,
+etc.) has enough data across enough calendar months to look real.
+
+## Realistic Distributions
+
+Two things are deliberately **not** uniform random, because a flat
+distribution made the generated book of business look unrealistic:
+
+- **Claim status.** `CLAIM_STATUS_WEIGHTS` biases toward Approved (65%),
+  with Denied (15%) and a small mid-cycle tail (In Review, Submitted,
+  Appealed). Claims created within the last `RECENT_CLAIM_WINDOW_DAYS`
+  (default 45) of `--end-date` use `RECENT_CLAIM_STATUS_WEIGHTS` instead —
+  skewed toward Submitted/In Review — because a claim created last week
+  has not had time to resolve yet. A claim's status is not just random; it
+  depends on how old the claim is.
+- **Collection recovery.** `amountCollected` for an Approved claim is drawn
+  from a triangular distribution (`random.triangular(0.4, 1.0, 0.95)`) —
+  peaking near full payment, tailing down to 40% for partial payments —
+  instead of a flat 20-100% spread that made every approved claim look
+  underpaid.
+
+Net effect on the checked-in seeds: **~48% collection rate**, **~14.6%
+denial rate**, and a claim status mix that reads like an actual RCM
+operation rather than five equally-likely coin flips. Both weight tables
+are class constants at the top of `rcm_module.py` if you want to tune the
+mix for a different scenario (e.g. a payer having a bad quarter).
 
 ## Use Cases
 

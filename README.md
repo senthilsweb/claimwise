@@ -63,8 +63,9 @@ cd data-generator
 # Install dependencies
 pip install -r requirements.txt
 
-# Generate data (CSV)
-python rcm_module.py --patients 100 --claims 300
+# Generate data (CSV) — the volume checked into dbt-pipeline/seeds/healthcare_data
+python rcm_module.py --patients 1500 --claims 5000 --encounters 8000 \
+  --start-date 2024-08-01 --end-date 2026-07-29 --seed 42
 
 # Generate data (DuckDB with multi-schema)
 python rcm_module.py --format duckdb --patients 500 --claims 1500
