@@ -1,7 +1,7 @@
 with date_spine as (
     {{ dbt_date.get_date_dimension(
-        start_date="2023-01-01",
-        end_date="2024-12-31"
+        start_date="2024-01-01",
+        end_date="2026-12-31"
     ) }}
 )
 select
