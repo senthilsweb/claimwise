@@ -27,4 +27,7 @@ ENV/
 
 # Data outputs are scoped per app:
 #   data-generator/.gitignore ignores generated csv/parquet/json/duckdb
-#   dbt-pipeline/.gitignore ignores dbt artifacts and the local DuckDB file
+#   matillion/.env and the root .env hold credentials and are ignored below
+
+# Secrets
+.env

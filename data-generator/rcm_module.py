@@ -2,7 +2,7 @@
 RCM Synthetic Data Generator Module
 
 Generates realistic healthcare revenue cycle management (RCM) data
-matching the Claimwise dbt pipeline seed schema (bronze layer):
+matching the Claimwise bronze layer schema:
 
 - users:        id, userID, userType, name, dateOfBirth, contactInfo, specialty, department, role
 - facilities:   id, facilityID, name, location, contactInfo
@@ -79,11 +79,11 @@ class HealthcareDataGenerator:
     """
     Generates synthetic healthcare RCM data with configurable volumes.
 
-    Datasets match the dbt pipeline bronze seeds:
+    Datasets match the Matillion bronze tables:
     users, facilities, health_plans, encounters, claims, activities, collections.
     """
 
-    # Domain constants — aligned with the dbt data-quality tests
+    # Domain constants — aligned with the silver data-quality assertions
     SPECIALTIES = [
         "Cardiology", "Family Medicine", "Internal Medicine",
         "Neurology", "Orthopedics", "Pediatrics"

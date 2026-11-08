@@ -14,9 +14,9 @@ Generate realistic healthcare revenue cycle management (RCM) synthetic data for 
 
 ## Data Model
 
-The generator creates 7 interrelated datasets that match the Claimwise dbt
+The generator creates 7 interrelated datasets that match the Claimwise Matillion
 pipeline seed schema (bronze layer) exactly — the output can be dropped into
-`dbt-pipeline/seeds/healthcare_data/` and the full pipeline (including all
+`data/landing/` and the full pipeline (including all
 data-quality tests) builds green against it:
 
 ```
@@ -280,7 +280,7 @@ output/
 | **Large** | 2,000 | 100 | 5,000 | 7,500 | ~75,000 |
 
 The **checked-in seeds** row is what actually lives in
-`dbt-pipeline/seeds/healthcare_data/` today — generated with `--seed 42`
+`data/landing/` today — generated with `--seed 42`
 over `--start-date 2024-08-01 --end-date 2026-07-29`. The earlier default
 (100 patients / 300 claims / one year) left AR aging buckets and the
 monthly revenue trend too thin to demo meaningfully — most aging buckets
@@ -330,7 +330,7 @@ The generated data includes:
 - **Business Rules Enforced**: Collections only against approved claims and never exceeding the claim amount; every claim has at least one activity
 - **Proper Date Sequences**: Claim activities fall inside the claim's created/updated window; no future dates
 
-The output passes the dbt pipeline's full test suite (uniqueness, not-null,
+The output passes the Matillion pipeline's full assertion suite (uniqueness, not-null,
 accepted values, ID formats, referential integrity, reconciliation).
 
 ## License

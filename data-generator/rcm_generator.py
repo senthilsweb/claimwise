@@ -201,7 +201,7 @@ def __(mo):
         ## Data Model Overview
 
         The generator creates 7 interrelated datasets matching the Claimwise
-        dbt pipeline bronze seeds:
+        Matillion bronze tables:
 
         | Dataset | Description | Key Fields |
         |---------|-------------|------------|
