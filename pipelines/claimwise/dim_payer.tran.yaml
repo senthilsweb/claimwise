@@ -1,0 +1,45 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: payer dimension from claimwise.silver.int_payers -> claimwise.gold.dim_payer"
+  components:
+    int_payers:
+      type: "table-input"
+      parameters:
+        componentName: "int_payers"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_payers"
+        columnNames: ["payer_id", "payer_code", "payer_name", "contactInfo", "total_claims_received", "total_claims_amount", "avg_claim_amount", "unique_patients", "total_health_plans", "plan_names"]
+        offsetType: "None"
+    select columns:
+      type: "calculator"
+      sources: ["int_payers"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`payer_id`", "payer_id"]
+          - ["`payer_code`", "payer_code"]
+          - ["`payer_name`", "payer_name"]
+          - ["`contactInfo`", "contact_info"]
+          - ["`total_claims_received`", "total_claims_received"]
+          - ["`total_claims_amount`", "total_claims_amount"]
+          - ["`avg_claim_amount`", "avg_claim_amount"]
+          - ["`unique_patients`", "unique_patients"]
+          - ["`total_health_plans`", "total_health_plans"]
+          - ["`plan_names`", "plan_names"]
+          - ["current_timestamp()", "valid_from"]
+          - ["cast(null as timestamp)", "valid_to"]
+          - ["true", "is_current"]
+    write dim_payer:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_payer", catalog: "claimwise", schema: "gold", table: "dim_payer"}
+design:
+  components:
+    int_payers: {position: {x: 0, y: 0}}
+    select columns: {position: {x: 200, y: 0}}
+    write dim_payer: {position: {x: 400, y: 0}}

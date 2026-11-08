@@ -1,0 +1,185 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold layer: 13 dims/facts in parallel, then 6 mtr_* metric tables in parallel, then singular data tests. Fails fast."
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional: ["dim_date", "dim_department", "dim_facility", "dim_health_plan", "dim_staff", "dim_diagnosis", "dim_doctor", "dim_patient", "fct_encounters", "dim_payer", "fct_claims", "fct_claim_activities", "fct_collections"]
+      parameters:
+        componentName: "Start"
+    dim_date:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_date", transformationJob: "pipelines/claimwise/dim_date.tran.yaml"}
+    dim_department:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_department", transformationJob: "pipelines/claimwise/dim_department.tran.yaml"}
+    dim_facility:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_facility", transformationJob: "pipelines/claimwise/dim_facility.tran.yaml"}
+    dim_health_plan:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_health_plan", transformationJob: "pipelines/claimwise/dim_health_plan.tran.yaml"}
+    dim_staff:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_staff", transformationJob: "pipelines/claimwise/dim_staff.tran.yaml"}
+    dim_diagnosis:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_diagnosis", transformationJob: "pipelines/claimwise/dim_diagnosis.tran.yaml"}
+    dim_doctor:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_doctor", transformationJob: "pipelines/claimwise/dim_doctor.tran.yaml"}
+    dim_patient:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_patient", transformationJob: "pipelines/claimwise/dim_patient.tran.yaml"}
+    fct_encounters:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "fct_encounters", transformationJob: "pipelines/claimwise/fct_encounters.tran.yaml"}
+    dim_payer:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "dim_payer", transformationJob: "pipelines/claimwise/dim_payer.tran.yaml"}
+    fct_claims:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "fct_claims", transformationJob: "pipelines/claimwise/fct_claims.tran.yaml"}
+    fct_claim_activities:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "fct_claim_activities", transformationJob: "pipelines/claimwise/fct_claim_activities.tran.yaml"}
+    fct_collections:
+      type: "run-transformation"
+      transitions: {success: ["dims facts done"]}
+      parameters: {componentName: "fct_collections", transformationJob: "pipelines/claimwise/fct_collections.tran.yaml"}
+    dims facts done:
+      type: "and"
+      transitions:
+        success: ["mtr_executive_summary", "mtr_claims_funnel", "mtr_revenue_monthly", "mtr_payer_scorecard", "mtr_ar_aging", "mtr_department_activity"]
+      parameters:
+        componentName: "dims facts done"
+    mtr_executive_summary:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_executive_summary", transformationJob: "pipelines/claimwise/mtr_executive_summary.tran.yaml"}
+    mtr_claims_funnel:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_claims_funnel", transformationJob: "pipelines/claimwise/mtr_claims_funnel.tran.yaml"}
+    mtr_revenue_monthly:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_revenue_monthly", transformationJob: "pipelines/claimwise/mtr_revenue_monthly.tran.yaml"}
+    mtr_payer_scorecard:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_payer_scorecard", transformationJob: "pipelines/claimwise/mtr_payer_scorecard.tran.yaml"}
+    mtr_ar_aging:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_ar_aging", transformationJob: "pipelines/claimwise/mtr_ar_aging.tran.yaml"}
+    mtr_department_activity:
+      type: "run-transformation"
+      transitions: {success: ["metrics done"]}
+      parameters: {componentName: "mtr_department_activity", transformationJob: "pipelines/claimwise/mtr_department_activity.tran.yaml"}
+    metrics done:
+      type: "and"
+      transitions:
+        success: ["Gold singular tests"]
+      parameters:
+        componentName: "metrics done"
+    Gold singular tests:
+      type: "query-to-scalar"
+      transitions:
+        success: ["Assert gold tests"]
+      parameters:
+        componentName: "Gold singular tests"
+        mode: "Advanced"
+        query: |
+          select
+           (select count(*) from claimwise.gold.fct_claims where claim_amount < 0) as t_claim_amounts_non_negative,
+           (select count(*) from (select col.claim_key from claimwise.gold.fct_collections col inner join claimwise.gold.fct_claims cl on col.claim_key = cl.claim_id group by col.claim_key having sum(col.collected_amount) > max(cl.claim_amount))) as t_collections_not_exceeding_claims,
+           (select count(*) from (select patient_id from claimwise.gold.dim_patient group by patient_id having count(*) > 1 union all select facility_id from claimwise.gold.dim_facility group by facility_id having count(*) > 1)) as t_dim_keys_unique,
+           (select count(*) from claimwise.gold.fct_encounters where encounter_date is null or cast(encounter_date as date) > current_date) as t_encounter_dates_valid,
+           (select count(*) from claimwise.silver.stg_claims c where c.dateCreated > c.dateUpdated or c.dateCreated > current_date) + (select count(*) from claimwise.silver.stg_activities a inner join claimwise.silver.stg_claims c on a.claimID = c.id where a.activityDate < c.dateCreated or a.activityDate > c.dateUpdated) as t_claim_dates_consistent,
+           (select count(*) from claimwise.silver.stg_claims where claimID not like 'CLM%') + (select count(*) from claimwise.silver.stg_collections where collectionID not like 'COL%') + (select count(*) from claimwise.silver.stg_encounters where encounterID not like 'ENC%') + (select count(*) from claimwise.silver.stg_activities where activityID not like 'ACT%') + (select count(*) from claimwise.silver.stg_facilities where facilityID not like 'FAC%') + (select count(*) from claimwise.silver.stg_health_plans where healthPlanID not like 'HP%') + (select count(*) from claimwise.silver.stg_users where (userType = 'DOCTOR' and userID not like 'DR%') or (userType = 'PATIENT' and userID not like 'PT%') or (userType = 'STAFF' and userID not like 'STF%') or (userType = 'PAYER' and userID not like 'PAY%')) + (select count(*) from claimwise.silver.stg_activities where (diagnosisCode is not null and diagnosisCode not like 'ICD-%') or (procedureCode is not null and procedureCode not like 'CPT-%')) as t_id_format_validation,
+           (select count(*) from claimwise.silver.stg_users u where u.userType = 'DOCTOR' and (u.specialty is null or trim(u.specialty) = '')) + (select count(*) from claimwise.silver.stg_encounters e inner join claimwise.silver.stg_users u on e.doctorID = u.id where u.userType != 'DOCTOR') as t_provider_specialty_match
+        scalarVariableMapping:
+          - ["t_claim_amounts_non_negative", "t_claim_amounts_non_negative"]
+          - ["t_collections_not_exceeding_claims", "t_collections_not_exceeding_claims"]
+          - ["t_dim_keys_unique", "t_dim_keys_unique"]
+          - ["t_encounter_dates_valid", "t_encounter_dates_valid"]
+          - ["t_claim_dates_consistent", "t_claim_dates_consistent"]
+          - ["t_id_format_validation", "t_id_format_validation"]
+          - ["t_provider_specialty_match", "t_provider_specialty_match"]
+    Assert gold tests:
+      type: "assert-scalar-variables"
+      parameters:
+        componentName: "Assert gold tests"
+        assertions:
+          - ["t_claim_amounts_non_negative", "0"]
+          - ["t_collections_not_exceeding_claims", "0"]
+          - ["t_dim_keys_unique", "0"]
+          - ["t_encounter_dates_valid", "0"]
+          - ["t_claim_dates_consistent", "0"]
+          - ["t_id_format_validation", "0"]
+          - ["t_provider_specialty_match", "0"]
+  variables:
+    t_claim_amounts_non_negative:
+      metadata: {type: "NUMBER", description: "Failing rows: test_claim_amounts_non_negative", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_collections_not_exceeding_claims:
+      metadata: {type: "NUMBER", description: "Failing rows: test_collections_not_exceeding_claims", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_dim_keys_unique:
+      metadata: {type: "NUMBER", description: "Failing rows: test_dim_keys_unique", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_encounter_dates_valid:
+      metadata: {type: "NUMBER", description: "Failing rows: test_encounter_dates_valid", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_claim_dates_consistent:
+      metadata: {type: "NUMBER", description: "Failing rows: test_claim_dates_consistent", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_id_format_validation:
+      metadata: {type: "NUMBER", description: "Failing rows: test_id_format_validation", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+    t_provider_specialty_match:
+      metadata: {type: "NUMBER", description: "Failing rows: test_provider_specialty_match", scope: "SHARED", visibility: "PRIVATE"}
+      defaultValue: "-1"
+design:
+  components:
+    Start: {position: {x: 0, y: 600}}
+    dim_date: {position: {x: 200, y: 0}}
+    dim_department: {position: {x: 200, y: 100}}
+    dim_facility: {position: {x: 200, y: 200}}
+    dim_health_plan: {position: {x: 200, y: 300}}
+    dim_staff: {position: {x: 200, y: 400}}
+    dim_diagnosis: {position: {x: 200, y: 500}}
+    dim_doctor: {position: {x: 200, y: 600}}
+    dim_patient: {position: {x: 200, y: 700}}
+    fct_encounters: {position: {x: 200, y: 800}}
+    dim_payer: {position: {x: 200, y: 900}}
+    fct_claims: {position: {x: 200, y: 1000}}
+    fct_claim_activities: {position: {x: 200, y: 1100}}
+    fct_collections: {position: {x: 200, y: 1200}}
+    dims facts done: {position: {x: 400, y: 600}}
+    mtr_executive_summary: {position: {x: 600, y: 350}}
+    mtr_claims_funnel: {position: {x: 600, y: 450}}
+    mtr_revenue_monthly: {position: {x: 600, y: 550}}
+    mtr_payer_scorecard: {position: {x: 600, y: 650}}
+    mtr_ar_aging: {position: {x: 600, y: 750}}
+    mtr_department_activity: {position: {x: 600, y: 850}}
+    metrics done: {position: {x: 800, y: 600}}
+    Gold singular tests: {position: {x: 1000, y: 600}}
+    Assert gold tests: {position: {x: 1200, y: 600}}

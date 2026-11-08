@@ -1,0 +1,45 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: doctor dimension built from claimwise.silver.int_doctors (spec file dim_doctor.sql is a known defect copy of dim_diagnosis) -> claimwise.gold.dim_doctor"
+  components:
+    int_doctors:
+      type: "table-input"
+      parameters:
+        componentName: "int_doctors"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_doctors"
+        columnNames: ["doctor_id", "doctor_code", "doctor_name", "specialty", "contactInfo", "total_patients_seen", "unique_patients_seen", "last_encounter_date", "facilities_practiced_in", "facility_names"]
+        offsetType: "None"
+    select columns:
+      type: "calculator"
+      sources: ["int_doctors"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`doctor_id`", "doctor_id"]
+          - ["`doctor_code`", "doctor_code"]
+          - ["`doctor_name`", "doctor_name"]
+          - ["`specialty`", "specialty"]
+          - ["`contactInfo`", "contact_info"]
+          - ["`total_patients_seen`", "total_patients_seen"]
+          - ["`unique_patients_seen`", "unique_patients_seen"]
+          - ["`last_encounter_date`", "last_encounter_date"]
+          - ["`facilities_practiced_in`", "facilities_practiced_in"]
+          - ["`facility_names`", "facility_names"]
+          - ["current_timestamp()", "valid_from"]
+          - ["cast(null as timestamp)", "valid_to"]
+          - ["true", "is_current"]
+    write dim_doctor:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_doctor", catalog: "claimwise", schema: "gold", table: "dim_doctor"}
+design:
+  components:
+    int_doctors: {position: {x: 0, y: 0}}
+    select columns: {position: {x: 200, y: 0}}
+    write dim_doctor: {position: {x: 400, y: 0}}

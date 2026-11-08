@@ -1,0 +1,39 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: date dimension 2024-01-01..2026-12-31 -> claimwise.gold.dim_date. SQL component used only to generate the date spine (explode/sequence), which no visual component provides."
+  components:
+    date_spine:
+      type: "sql"
+      parameters:
+        componentName: "date_spine"
+        query: "select explode(sequence(DATE'2024-01-01', DATE'2026-12-31', INTERVAL 1 DAY)) as date_day"
+    date attributes:
+      type: "calculator"
+      sources: ["date_spine"]
+      parameters:
+        componentName: "date attributes"
+        includeInputColumns: "No"
+        calculations:
+          - ["`date_day`", "date_id"]
+          - ["`date_day`", "full_date"]
+          - ["year(`date_day`)", "year"]
+          - ["month(`date_day`)", "month_number"]
+          - ["date_format(`date_day`, 'MMMM')", "month_name"]
+          - ["quarter(`date_day`)", "quarter"]
+          - ["dayofweek(`date_day`)", "day_of_week"]
+          - ["date_format(`date_day`, 'EEEE')", "day_name"]
+          - ["dayofweek(`date_day`) in (1, 7)", "is_weekend"]
+          - ["cast(date_trunc('WEEK', `date_day`) as date)", "week_start_date"]
+          - ["date_add(cast(date_trunc('WEEK', `date_day`) as date), 6)", "week_end_date"]
+    write dim_date:
+      type: "rewrite-table-dl"
+      sources: ["date attributes"]
+      parameters: {componentName: "write dim_date", catalog: "claimwise", schema: "gold", table: "dim_date"}
+design:
+  components:
+    date_spine: {position: {x: 0, y: 0}}
+    date attributes: {position: {x: 200, y: 0}}
+    write dim_date: {position: {x: 400, y: 0}}

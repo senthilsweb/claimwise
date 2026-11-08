@@ -1,0 +1,166 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: single-row executive KPI summary -> claimwise.gold.mtr_executive_summary"
+  components:
+    fct_collections:
+      type: "table-input"
+      parameters:
+        componentName: "fct_collections"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_collections"
+        columnNames: ["claim_key", "collected_amount"]
+        offsetType: "None"
+    collected_per_claim:
+      type: "aggregate"
+      sources: ["fct_collections"]
+      parameters:
+        componentName: "collected_per_claim"
+        groupings: ["claim_key"]
+        aggregations:
+          - ["collected_amount", "Sum"]
+    fct_claims:
+      type: "table-input"
+      parameters:
+        componentName: "fct_claims"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_claims"
+        columnNames: ["claim_id", "claim_status", "claim_amount", "denied_claim_flag"]
+        offsetType: "None"
+    join collected:
+      type: "join"
+      sources: ["fct_claims", "collected_per_claim"]
+      parameters:
+        componentName: "join collected"
+        mainTable: "fct_claims"
+        mainTableAlias: "f"
+        joins:
+          - ["collected_per_claim", "c", "Left"]
+        joinExpressions:
+          - ["`f`.`claim_id` = `c`.`claim_key`", "f_Left_c"]
+        columnMappings:
+          - ["f.claim_id", "claim_id"]
+          - ["f.claim_status", "claim_status"]
+          - ["f.claim_amount", "claim_amount"]
+          - ["f.denied_claim_flag", "denied_claim_flag"]
+          - ["c.sum_collected_amount", "collected_raw"]
+    line amounts:
+      type: "calculator"
+      sources: ["join collected"]
+      parameters:
+        componentName: "line amounts"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["coalesce(`collected_raw`, 0)", "collected_amount"]
+          - ["case when `claim_status` != 'Denied' and `claim_amount` - coalesce(`collected_raw`, 0) > 0 then `claim_amount` - coalesce(`collected_raw`, 0) else 0 end", "open_ar"]
+    claim totals:
+      type: "aggregate"
+      sources: ["line amounts"]
+      parameters:
+        componentName: "claim totals"
+        aggregations:
+          - ["claim_amount", "Sum"]
+          - ["collected_amount", "Sum"]
+          - ["claim_id", "Count"]
+          - ["denied_claim_flag", "Sum"]
+          - ["open_ar", "Sum"]
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["dateCreated", "dateUpdated"]
+        offsetType: "None"
+    cycle days:
+      type: "calculator"
+      sources: ["stg_claims"]
+      parameters:
+        componentName: "cycle days"
+        includeInputColumns: "No"
+        calculations:
+          - ["datediff(`dateUpdated`, `dateCreated`)", "cycle_days"]
+    cycle:
+      type: "aggregate"
+      sources: ["cycle days"]
+      parameters:
+        componentName: "cycle"
+        aggregations:
+          - ["cycle_days", "Average"]
+    fct_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "fct_encounters"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_encounters"
+        columnNames: ["encounter_id"]
+        offsetType: "None"
+    encounters:
+      type: "aggregate"
+      sources: ["fct_encounters"]
+      parameters:
+        componentName: "encounters"
+        aggregations:
+          - ["encounter_id", "Count"]
+    cross join:
+      type: "join"
+      sources: ["claim totals", "cycle", "encounters"]
+      parameters:
+        componentName: "cross join"
+        mainTable: "claim totals"
+        mainTableAlias: "cl"
+        joins:
+          - ["cycle", "cy", "Inner"]
+          - ["encounters", "e", "Inner"]
+        joinExpressions:
+          - ["1 = 1", "cl_Inner_cy"]
+          - ["1 = 1", "cl_Inner_e"]
+        columnMappings:
+          - ["cl.sum_claim_amount", "gross_billed"]
+          - ["cl.sum_collected_amount", "total_collected"]
+          - ["cl.count_claim_id", "claim_count"]
+          - ["cl.sum_denied_claim_flag", "denied_count"]
+          - ["cl.sum_open_ar", "open_ar"]
+          - ["cy.avg_cycle_days", "avg_cycle_days"]
+          - ["e.count_encounter_id", "encounter_count"]
+    kpis:
+      type: "calculator"
+      sources: ["cross join"]
+      parameters:
+        componentName: "kpis"
+        includeInputColumns: "No"
+        calculations:
+          - ["round(`gross_billed`, 2)", "gross_billed"]
+          - ["round(`total_collected`, 2)", "total_collected"]
+          - ["round(100.0 * `total_collected` / nullif(`gross_billed`, 0), 2)", "collection_rate_pct"]
+          - ["round(100.0 * `denied_count` / nullif(`claim_count`, 0), 2)", "denial_rate_pct"]
+          - ["round(`open_ar`, 2)", "open_ar"]
+          - ["round(`avg_cycle_days`, 1)", "avg_cycle_days"]
+          - ["`claim_count`", "claim_count"]
+          - ["`encounter_count`", "encounter_count"]
+    write mtr_executive_summary:
+      type: "rewrite-table-dl"
+      sources: ["kpis"]
+      parameters: {componentName: "write mtr_executive_summary", catalog: "claimwise", schema: "gold", table: "mtr_executive_summary"}
+design:
+  components:
+    fct_collections: {position: {x: 0, y: 150}}
+    collected_per_claim: {position: {x: 200, y: 150}}
+    fct_claims: {position: {x: 0, y: 0}}
+    join collected: {position: {x: 400, y: 0}}
+    line amounts: {position: {x: 600, y: 0}}
+    claim totals: {position: {x: 800, y: 0}}
+    stg_claims: {position: {x: 0, y: 300}}
+    cycle days: {position: {x: 200, y: 300}}
+    cycle: {position: {x: 400, y: 300}}
+    fct_encounters: {position: {x: 0, y: 450}}
+    encounters: {position: {x: 200, y: 450}}
+    cross join: {position: {x: 1000, y: 150}}
+    kpis: {position: {x: 1200, y: 150}}
+    write mtr_executive_summary: {position: {x: 1400, y: 150}}

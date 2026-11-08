@@ -1,0 +1,89 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: encounter fact with patient and doctor context -> claimwise.gold.fct_encounters"
+  components:
+    stg_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "stg_encounters"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_encounters"
+        columnNames: ["id", "encounterID", "date", "patientID", "doctorID", "facilityID", "type", "duration"]
+        offsetType: "None"
+    int_patients:
+      type: "table-input"
+      parameters:
+        componentName: "int_patients"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_patients"
+        columnNames: ["patient_id", "total_claims"]
+        offsetType: "None"
+    int_doctors:
+      type: "table-input"
+      parameters:
+        componentName: "int_doctors"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_doctors"
+        columnNames: ["doctor_id", "total_patients_seen"]
+        offsetType: "None"
+    join context:
+      type: "join"
+      sources: ["stg_encounters", "int_patients", "int_doctors"]
+      parameters:
+        componentName: "join context"
+        mainTable: "stg_encounters"
+        mainTableAlias: "e"
+        joins:
+          - ["int_patients", "p", "Left"]
+          - ["int_doctors", "d", "Left"]
+        joinExpressions:
+          - ["`e`.`patientID` = `p`.`patient_id`", "e_Left_p"]
+          - ["`e`.`doctorID` = `d`.`doctor_id`", "e_Left_d"]
+        columnMappings:
+          - ["e.id", "encounter_id"]
+          - ["e.encounterID", "encounter_code"]
+          - ["e.date", "encounter_date"]
+          - ["e.patientID", "patient_key"]
+          - ["e.doctorID", "doctor_key"]
+          - ["e.facilityID", "facility_key"]
+          - ["e.type", "encounter_type"]
+          - ["e.duration", "duration_minutes"]
+          - ["p.total_claims", "patient_total_claims"]
+          - ["d.total_patients_seen", "doctor_total_patients"]
+    metrics:
+      type: "calculator"
+      sources: ["join context"]
+      parameters:
+        componentName: "metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`encounter_id`", "encounter_id"]
+          - ["`encounter_code`", "encounter_code"]
+          - ["`encounter_date`", "encounter_date"]
+          - ["`patient_key`", "patient_key"]
+          - ["`doctor_key`", "doctor_key"]
+          - ["`facility_key`", "facility_key"]
+          - ["`encounter_type`", "encounter_type"]
+          - ["`duration_minutes`", "duration_minutes"]
+          - ["1", "encounter_count"]
+          - ["case when `encounter_type` = 'Emergency' then 1 else 0 end", "emergency_visit_flag"]
+          - ["`patient_total_claims`", "patient_total_claims"]
+          - ["`doctor_total_patients`", "doctor_total_patients"]
+    write fct_encounters:
+      type: "rewrite-table-dl"
+      sources: ["metrics"]
+      parameters: {componentName: "write fct_encounters", catalog: "claimwise", schema: "gold", table: "fct_encounters"}
+design:
+  components:
+    stg_encounters: {position: {x: 0, y: 0}}
+    int_patients: {position: {x: 0, y: 150}}
+    int_doctors: {position: {x: 0, y: 300}}
+    join context: {position: {x: 200, y: 150}}
+    metrics: {position: {x: 400, y: 150}}
+    write fct_encounters: {position: {x: 600, y: 150}}

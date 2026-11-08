@@ -1,0 +1,64 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: facility dimension with patient/doctor reach -> claimwise.gold.dim_facility"
+  components:
+    stg_facilities:
+      type: "table-input"
+      parameters:
+        componentName: "stg_facilities"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_facilities"
+        columnNames: ["id", "facilityID", "name", "location", "contactInfo"]
+        offsetType: "None"
+    stg_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "stg_encounters"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_encounters"
+        columnNames: ["facilityID", "patientID", "doctorID"]
+        offsetType: "None"
+    facility_metrics:
+      type: "aggregate"
+      sources: ["stg_encounters"]
+      parameters:
+        componentName: "facility_metrics"
+        groupings: ["facilityID"]
+        aggregations:
+          - ["patientID", "Count Distinct"]
+          - ["doctorID", "Count Distinct"]
+    join metrics:
+      type: "join"
+      sources: ["stg_facilities", "facility_metrics"]
+      parameters:
+        componentName: "join metrics"
+        mainTable: "stg_facilities"
+        mainTableAlias: "f"
+        joins:
+          - ["facility_metrics", "fm", "Left"]
+        joinExpressions:
+          - ["`f`.`id` = `fm`.`facilityID`", "f_Left_fm"]
+        columnMappings:
+          - ["f.id", "facility_id"]
+          - ["f.facilityID", "facility_code"]
+          - ["f.name", "facility_name"]
+          - ["f.location", "facility_location"]
+          - ["f.contactInfo", "contact_info"]
+          - ["fm.count_distinct_patientID", "total_patients_served"]
+          - ["fm.count_distinct_doctorID", "total_doctors_practicing"]
+    write dim_facility:
+      type: "rewrite-table-dl"
+      sources: ["join metrics"]
+      parameters: {componentName: "write dim_facility", catalog: "claimwise", schema: "gold", table: "dim_facility"}
+design:
+  components:
+    stg_facilities: {position: {x: 0, y: 0}}
+    stg_encounters: {position: {x: 0, y: 150}}
+    facility_metrics: {position: {x: 200, y: 150}}
+    join metrics: {position: {x: 400, y: 0}}
+    write dim_facility: {position: {x: 600, y: 0}}

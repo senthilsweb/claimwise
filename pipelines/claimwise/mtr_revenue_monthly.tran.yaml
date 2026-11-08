@@ -1,0 +1,105 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: monthly billed vs collected -> claimwise.gold.mtr_revenue_monthly"
+  components:
+    fct_claims:
+      type: "table-input"
+      parameters:
+        componentName: "fct_claims"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_claims"
+        columnNames: ["claim_id", "claim_date", "claim_amount", "denied_claim_flag"]
+        offsetType: "None"
+    claim month:
+      type: "calculator"
+      sources: ["fct_claims"]
+      parameters:
+        componentName: "claim month"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["date_trunc('MONTH', `claim_date`)", "month"]
+    billed:
+      type: "aggregate"
+      sources: ["claim month"]
+      parameters:
+        componentName: "billed"
+        groupings: ["month"]
+        aggregations:
+          - ["claim_amount", "Sum"]
+          - ["claim_id", "Count"]
+          - ["denied_claim_flag", "Sum"]
+    fct_collections:
+      type: "table-input"
+      parameters:
+        componentName: "fct_collections"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_collections"
+        columnNames: ["collection_date", "collected_amount"]
+        offsetType: "None"
+    collection month:
+      type: "calculator"
+      sources: ["fct_collections"]
+      parameters:
+        componentName: "collection month"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["date_trunc('MONTH', `collection_date`)", "month"]
+    collected:
+      type: "aggregate"
+      sources: ["collection month"]
+      parameters:
+        componentName: "collected"
+        groupings: ["month"]
+        aggregations:
+          - ["collected_amount", "Sum"]
+    full join months:
+      type: "join"
+      sources: ["billed", "collected"]
+      parameters:
+        componentName: "full join months"
+        mainTable: "billed"
+        mainTableAlias: "b"
+        joins:
+          - ["collected", "c", "Full"]
+        joinExpressions:
+          - ["`b`.`month` = `c`.`month`", "b_Full_c"]
+        columnMappings:
+          - ["b.month", "b_month"]
+          - ["c.month", "c_month"]
+          - ["b.sum_claim_amount", "billed_amount"]
+          - ["c.sum_collected_amount", "collected_amount"]
+          - ["b.count_claim_id", "claim_count"]
+          - ["b.sum_denied_claim_flag", "denied_count"]
+    monthly metrics:
+      type: "calculator"
+      sources: ["full join months"]
+      parameters:
+        componentName: "monthly metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["cast(coalesce(`b_month`, `c_month`) as date)", "month"]
+          - ["coalesce(`billed_amount`, 0)", "billed_amount"]
+          - ["coalesce(`collected_amount`, 0)", "collected_amount"]
+          - ["round(100.0 * coalesce(`collected_amount`, 0) / nullif(`billed_amount`, 0), 2)", "collection_rate_pct"]
+          - ["coalesce(`claim_count`, 0)", "claim_count"]
+          - ["coalesce(`denied_count`, 0)", "denied_count"]
+    write mtr_revenue_monthly:
+      type: "rewrite-table-dl"
+      sources: ["monthly metrics"]
+      parameters: {componentName: "write mtr_revenue_monthly", catalog: "claimwise", schema: "gold", table: "mtr_revenue_monthly"}
+design:
+  components:
+    fct_claims: {position: {x: 0, y: 0}}
+    claim month: {position: {x: 200, y: 0}}
+    billed: {position: {x: 400, y: 0}}
+    fct_collections: {position: {x: 0, y: 150}}
+    collection month: {position: {x: 200, y: 150}}
+    collected: {position: {x: 400, y: 150}}
+    full join months: {position: {x: 600, y: 75}}
+    monthly metrics: {position: {x: 800, y: 75}}
+    write mtr_revenue_monthly: {position: {x: 1000, y: 75}}

@@ -1,0 +1,57 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: diagnosis dimension (distinct diagnosis codes with usage counts) -> claimwise.gold.dim_diagnosis"
+  components:
+    stg_activities:
+      type: "table-input"
+      parameters:
+        componentName: "stg_activities"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_activities"
+        columnNames: ["id", "diagnosisCode"]
+        offsetType: "None"
+    has diagnosis:
+      type: "filter"
+      sources: ["stg_activities"]
+      parameters:
+        componentName: "has diagnosis"
+        mode: "Basic"
+        filterConditions:
+          - ["diagnosisCode", "Not", "Null", ""]
+        combineCondition: "And"
+    count usage:
+      type: "aggregate"
+      sources: ["has diagnosis"]
+      parameters:
+        componentName: "count usage"
+        groupings: ["diagnosisCode"]
+        aggregations:
+          - ["id", "Count"]
+    select columns:
+      type: "calculator"
+      sources: ["count usage"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`diagnosisCode`", "diagnosis_id"]
+          - ["`diagnosisCode`", "diagnosis_code"]
+          - ["`count_id`", "total_claims_with_diagnosis"]
+          - ["current_timestamp()", "valid_from"]
+          - ["cast(null as timestamp)", "valid_to"]
+          - ["true", "is_current"]
+    write dim_diagnosis:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_diagnosis", catalog: "claimwise", schema: "gold", table: "dim_diagnosis"}
+design:
+  components:
+    stg_activities: {position: {x: 0, y: 0}}
+    has diagnosis: {position: {x: 200, y: 0}}
+    count usage: {position: {x: 400, y: 0}}
+    select columns: {position: {x: 600, y: 0}}
+    write dim_diagnosis: {position: {x: 800, y: 0}}

@@ -1,0 +1,46 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: claim lifecycle funnel by status -> claimwise.gold.mtr_claims_funnel"
+  components:
+    fct_claims:
+      type: "table-input"
+      parameters:
+        componentName: "fct_claims"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_claims"
+        columnNames: ["claim_id", "claim_status", "claim_amount"]
+        offsetType: "None"
+    by status:
+      type: "aggregate"
+      sources: ["fct_claims"]
+      parameters:
+        componentName: "by status"
+        groupings: ["claim_status"]
+        aggregations:
+          - ["claim_id", "Count"]
+          - ["claim_amount", "Sum"]
+    funnel metrics:
+      type: "calculator"
+      sources: ["by status"]
+      parameters:
+        componentName: "funnel metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`claim_status`", "claim_status"]
+          - ["`count_claim_id`", "claim_count"]
+          - ["round(`sum_claim_amount`, 2)", "total_amount"]
+          - ["round(100.0 * `count_claim_id` / sum(`count_claim_id`) over (), 2)", "pct_of_claims"]
+    write mtr_claims_funnel:
+      type: "rewrite-table-dl"
+      sources: ["funnel metrics"]
+      parameters: {componentName: "write mtr_claims_funnel", catalog: "claimwise", schema: "gold", table: "mtr_claims_funnel"}
+design:
+  components:
+    fct_claims: {position: {x: 0, y: 0}}
+    by status: {position: {x: 200, y: 0}}
+    funnel metrics: {position: {x: 400, y: 0}}
+    write mtr_claims_funnel: {position: {x: 600, y: 0}}

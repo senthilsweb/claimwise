@@ -1,0 +1,24 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: patient dimension from claimwise.silver.int_patients -> claimwise.gold.dim_patient"
+  components:
+    int_patients:
+      type: "table-input"
+      parameters:
+        componentName: "int_patients"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_patients"
+        columnNames: ["patient_id", "patient_code", "patient_name", "dateOfBirth", "contactInfo", "total_encounters", "last_encounter_date", "total_claims", "total_claims_amount", "last_claim_date"]
+        offsetType: "None"
+    write dim_patient:
+      type: "rewrite-table-dl"
+      sources: ["int_patients"]
+      parameters: {componentName: "write dim_patient", catalog: "claimwise", schema: "gold", table: "dim_patient"}
+design:
+  components:
+    int_patients: {position: {x: 0, y: 0}}
+    write dim_patient: {position: {x: 200, y: 0}}

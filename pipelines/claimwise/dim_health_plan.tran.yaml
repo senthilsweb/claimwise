@@ -1,0 +1,80 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: health plan dimension with enrolled patients and claim totals (via payer) -> claimwise.gold.dim_health_plan. health_plans.id is unique, so grouping by plan attributes equals the spec's plan_metrics join-back."
+  components:
+    stg_health_plans:
+      type: "table-input"
+      parameters:
+        componentName: "stg_health_plans"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_health_plans"
+        columnNames: ["id", "healthPlanID", "planName", "payerID"]
+        offsetType: "None"
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["payerID", "patientID", "amount"]
+        offsetType: "None"
+    join claims:
+      type: "join"
+      sources: ["stg_health_plans", "stg_claims"]
+      parameters:
+        componentName: "join claims"
+        mainTable: "stg_health_plans"
+        mainTableAlias: "hp"
+        joins:
+          - ["stg_claims", "c", "Left"]
+        joinExpressions:
+          - ["`hp`.`payerID` = `c`.`payerID`", "hp_Left_c"]
+        columnMappings:
+          - ["hp.id", "health_plan_id"]
+          - ["hp.healthPlanID", "health_plan_code"]
+          - ["hp.planName", "plan_name"]
+          - ["hp.payerID", "payer_key"]
+          - ["c.patientID", "patientID"]
+          - ["c.amount", "amount"]
+    plan_metrics:
+      type: "aggregate"
+      sources: ["join claims"]
+      parameters:
+        componentName: "plan_metrics"
+        groupings: ["health_plan_id", "health_plan_code", "plan_name", "payer_key"]
+        aggregations:
+          - ["patientID", "Count Distinct"]
+          - ["amount", "Sum"]
+    select columns:
+      type: "calculator"
+      sources: ["plan_metrics"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`health_plan_id`", "health_plan_id"]
+          - ["`health_plan_code`", "health_plan_code"]
+          - ["`plan_name`", "plan_name"]
+          - ["`payer_key`", "payer_key"]
+          - ["`count_distinct_patientID`", "enrolled_patients"]
+          - ["`sum_amount`", "total_claims_amount"]
+          - ["current_timestamp()", "valid_from"]
+          - ["cast(null as timestamp)", "valid_to"]
+          - ["true", "is_current"]
+    write dim_health_plan:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_health_plan", catalog: "claimwise", schema: "gold", table: "dim_health_plan"}
+design:
+  components:
+    stg_health_plans: {position: {x: 0, y: 0}}
+    stg_claims: {position: {x: 0, y: 150}}
+    join claims: {position: {x: 200, y: 0}}
+    plan_metrics: {position: {x: 400, y: 0}}
+    select columns: {position: {x: 600, y: 0}}
+    write dim_health_plan: {position: {x: 800, y: 0}}

@@ -1,0 +1,38 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Claimwise daily master: 10_bronze_load -> 20_silver -> 30_gold. Success-only links, so any failure stops the run (fail fast)."
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional: ["10_bronze_load"]
+      parameters:
+        componentName: "Start"
+    10_bronze_load:
+      type: "run-orchestration"
+      transitions:
+        success: ["20_silver"]
+      parameters:
+        componentName: "10_bronze_load"
+        orchestrationJob: "pipelines/claimwise/10_bronze_load.orch.yaml"
+    20_silver:
+      type: "run-orchestration"
+      transitions:
+        success: ["30_gold"]
+      parameters:
+        componentName: "20_silver"
+        orchestrationJob: "pipelines/claimwise/20_silver.orch.yaml"
+    30_gold:
+      type: "run-orchestration"
+      parameters:
+        componentName: "30_gold"
+        orchestrationJob: "pipelines/claimwise/30_gold.orch.yaml"
+design:
+  components:
+    Start: {position: {x: 0, y: 0}}
+    10_bronze_load: {position: {x: 200, y: 0}}
+    20_silver: {position: {x: 400, y: 0}}
+    30_gold: {position: {x: 600, y: 0}}

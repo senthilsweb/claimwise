@@ -1,0 +1,138 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: open AR by payer and aging bucket (claims not denied, open amount > 0) -> claimwise.gold.mtr_ar_aging"
+  components:
+    fct_collections:
+      type: "table-input"
+      parameters:
+        componentName: "fct_collections"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_collections"
+        columnNames: ["claim_key", "collected_amount"]
+        offsetType: "None"
+    collected_per_claim:
+      type: "aggregate"
+      sources: ["fct_collections"]
+      parameters:
+        componentName: "collected_per_claim"
+        groupings: ["claim_key"]
+        aggregations:
+          - ["collected_amount", "Sum"]
+    fct_claims:
+      type: "table-input"
+      parameters:
+        componentName: "fct_claims"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_claims"
+        columnNames: ["claim_id", "payer_key", "claim_date", "claim_status", "claim_amount"]
+        offsetType: "None"
+    join collected:
+      type: "join"
+      sources: ["fct_claims", "collected_per_claim"]
+      parameters:
+        componentName: "join collected"
+        mainTable: "fct_claims"
+        mainTableAlias: "f"
+        joins:
+          - ["collected_per_claim", "c", "Left"]
+        joinExpressions:
+          - ["`f`.`claim_id` = `c`.`claim_key`", "f_Left_c"]
+        columnMappings:
+          - ["f.payer_key", "payer_key"]
+          - ["f.claim_date", "claim_date"]
+          - ["f.claim_status", "claim_status"]
+          - ["f.claim_amount", "claim_amount"]
+          - ["c.sum_collected_amount", "collected_amount"]
+    open amounts:
+      type: "calculator"
+      sources: ["join collected"]
+      parameters:
+        componentName: "open amounts"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["`claim_amount` - coalesce(`collected_amount`, 0)", "open_amount"]
+          - ["datediff(current_date(), `claim_date`)", "age_days"]
+    open claims:
+      type: "filter"
+      sources: ["open amounts"]
+      parameters:
+        componentName: "open claims"
+        mode: "Advanced"
+        filterClause: "`claim_status` != 'Denied' and `open_amount` > 0"
+    dim_payer:
+      type: "table-input"
+      parameters:
+        componentName: "dim_payer"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "dim_payer"
+        columnNames: ["payer_id", "payer_name"]
+        offsetType: "None"
+    join payer:
+      type: "join"
+      sources: ["open claims", "dim_payer"]
+      parameters:
+        componentName: "join payer"
+        mainTable: "open claims"
+        mainTableAlias: "o"
+        joins:
+          - ["dim_payer", "p", "Inner"]
+        joinExpressions:
+          - ["`o`.`payer_key` = `p`.`payer_id`", "o_Inner_p"]
+        columnMappings:
+          - ["p.payer_name", "payer_name"]
+          - ["o.open_amount", "open_amount"]
+          - ["o.age_days", "age_days"]
+    buckets:
+      type: "calculator"
+      sources: ["join payer"]
+      parameters:
+        componentName: "buckets"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["case when `age_days` <= 30 then '0-30' when `age_days` <= 60 then '31-60' when `age_days` <= 90 then '61-90' else '90+' end", "aging_bucket"]
+          - ["case when `age_days` <= 30 then 1 when `age_days` <= 60 then 2 when `age_days` <= 90 then 3 else 4 end", "bucket_order"]
+    by payer bucket:
+      type: "aggregate"
+      sources: ["buckets"]
+      parameters:
+        componentName: "by payer bucket"
+        groupings: ["payer_name", "aging_bucket", "bucket_order"]
+        aggregations:
+          - ["open_amount", "Count"]
+          - ["open_amount", "Sum"]
+    aging metrics:
+      type: "calculator"
+      sources: ["by payer bucket"]
+      parameters:
+        componentName: "aging metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`payer_name`", "payer_name"]
+          - ["`aging_bucket`", "aging_bucket"]
+          - ["`bucket_order`", "bucket_order"]
+          - ["`count_open_amount`", "open_claim_count"]
+          - ["round(`sum_open_amount`, 2)", "open_ar_amount"]
+    write mtr_ar_aging:
+      type: "rewrite-table-dl"
+      sources: ["aging metrics"]
+      parameters: {componentName: "write mtr_ar_aging", catalog: "claimwise", schema: "gold", table: "mtr_ar_aging"}
+design:
+  components:
+    fct_collections: {position: {x: 0, y: 150}}
+    collected_per_claim: {position: {x: 200, y: 150}}
+    fct_claims: {position: {x: 0, y: 0}}
+    join collected: {position: {x: 400, y: 0}}
+    open amounts: {position: {x: 600, y: 0}}
+    open claims: {position: {x: 800, y: 0}}
+    dim_payer: {position: {x: 800, y: 150}}
+    join payer: {position: {x: 1000, y: 0}}
+    buckets: {position: {x: 1200, y: 0}}
+    by payer bucket: {position: {x: 1400, y: 0}}
+    aging metrics: {position: {x: 1600, y: 0}}
+    write mtr_ar_aging: {position: {x: 1800, y: 0}}

@@ -1,0 +1,77 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: collection fact with claim context and collection rate -> claimwise.gold.fct_collections"
+  components:
+    stg_collections:
+      type: "table-input"
+      parameters:
+        componentName: "stg_collections"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_collections"
+        columnNames: ["id", "collectionID", "claimID", "date", "methodOfCollection", "amountCollected", "status"]
+        offsetType: "None"
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["id", "patientID", "payerID", "amount"]
+        offsetType: "None"
+    join claims:
+      type: "join"
+      sources: ["stg_collections", "stg_claims"]
+      parameters:
+        componentName: "join claims"
+        mainTable: "stg_collections"
+        mainTableAlias: "col"
+        joins:
+          - ["stg_claims", "c", "Left"]
+        joinExpressions:
+          - ["`col`.`claimID` = `c`.`id`", "col_Left_c"]
+        columnMappings:
+          - ["col.id", "collection_id"]
+          - ["col.collectionID", "collection_code"]
+          - ["col.claimID", "claim_key"]
+          - ["c.patientID", "patient_key"]
+          - ["c.payerID", "payer_key"]
+          - ["col.date", "collection_date"]
+          - ["col.methodOfCollection", "collection_method"]
+          - ["col.amountCollected", "collected_amount"]
+          - ["col.status", "collection_status"]
+          - ["c.amount", "claim_amount"]
+    metrics:
+      type: "calculator"
+      sources: ["join claims"]
+      parameters:
+        componentName: "metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`collection_id`", "collection_id"]
+          - ["`collection_code`", "collection_code"]
+          - ["`claim_key`", "claim_key"]
+          - ["`patient_key`", "patient_key"]
+          - ["`payer_key`", "payer_key"]
+          - ["`collection_date`", "collection_date"]
+          - ["`collection_method`", "collection_method"]
+          - ["`collected_amount`", "collected_amount"]
+          - ["`collection_status`", "collection_status"]
+          - ["1", "collection_count"]
+          - ["case when `collection_status` = 'Completed' then 1 else 0 end", "successful_collection_flag"]
+          - ["`collected_amount` / nullif(`claim_amount`, 0)", "collection_rate"]
+    write fct_collections:
+      type: "rewrite-table-dl"
+      sources: ["metrics"]
+      parameters: {componentName: "write fct_collections", catalog: "claimwise", schema: "gold", table: "fct_collections"}
+design:
+  components:
+    stg_collections: {position: {x: 0, y: 0}}
+    stg_claims: {position: {x: 0, y: 150}}
+    join claims: {position: {x: 200, y: 0}}
+    metrics: {position: {x: 400, y: 0}}
+    write fct_collections: {position: {x: 600, y: 0}}

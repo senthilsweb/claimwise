@@ -1,0 +1,67 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: claim activity fact -> claimwise.gold.fct_claim_activities"
+  components:
+    stg_activities:
+      type: "table-input"
+      parameters:
+        componentName: "stg_activities"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_activities"
+        columnNames: ["id", "activityID", "claimID", "activityDate", "activityType", "diagnosisCode", "procedureCode"]
+        offsetType: "None"
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["id", "patientID", "payerID"]
+        offsetType: "None"
+    join claims:
+      type: "join"
+      sources: ["stg_activities", "stg_claims"]
+      parameters:
+        componentName: "join claims"
+        mainTable: "stg_activities"
+        mainTableAlias: "a"
+        joins:
+          - ["stg_claims", "c", "Left"]
+        joinExpressions:
+          - ["`a`.`claimID` = `c`.`id`", "a_Left_c"]
+        columnMappings:
+          - ["a.id", "activity_id"]
+          - ["a.activityID", "activity_code"]
+          - ["a.claimID", "claim_key"]
+          - ["c.patientID", "patient_key"]
+          - ["c.payerID", "payer_key"]
+          - ["a.activityDate", "activity_date"]
+          - ["a.activityType", "activity_type"]
+          - ["a.diagnosisCode", "diagnosisCode"]
+          - ["a.procedureCode", "procedureCode"]
+    metrics:
+      type: "calculator"
+      sources: ["join claims"]
+      parameters:
+        componentName: "metrics"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["1", "activity_count"]
+          - ["case when `activity_type` = 'Appeal' then 1 else 0 end", "is_appeal"]
+          - ["case when `activity_type` = 'Documentation Request' then 1 else 0 end", "is_documentation_request"]
+    write fct_claim_activities:
+      type: "rewrite-table-dl"
+      sources: ["metrics"]
+      parameters: {componentName: "write fct_claim_activities", catalog: "claimwise", schema: "gold", table: "fct_claim_activities"}
+design:
+  components:
+    stg_activities: {position: {x: 0, y: 0}}
+    stg_claims: {position: {x: 0, y: 150}}
+    join claims: {position: {x: 200, y: 0}}
+    metrics: {position: {x: 400, y: 0}}
+    write fct_claim_activities: {position: {x: 600, y: 0}}

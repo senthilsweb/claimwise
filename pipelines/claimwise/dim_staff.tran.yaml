@@ -1,0 +1,41 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: staff dimension from claimwise.silver.int_staff -> claimwise.gold.dim_staff"
+  components:
+    int_staff:
+      type: "table-input"
+      parameters:
+        componentName: "int_staff"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_staff"
+        columnNames: ["staff_id", "staff_code", "staff_name", "department", "role", "contactInfo"]
+        offsetType: "None"
+    select columns:
+      type: "calculator"
+      sources: ["int_staff"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`staff_id`", "staff_id"]
+          - ["`staff_code`", "staff_code"]
+          - ["`staff_name`", "staff_name"]
+          - ["`department`", "department"]
+          - ["`role`", "role"]
+          - ["`contactInfo`", "contact_info"]
+          - ["current_timestamp()", "valid_from"]
+          - ["cast(null as timestamp)", "valid_to"]
+          - ["true", "is_current"]
+    write dim_staff:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_staff", catalog: "claimwise", schema: "gold", table: "dim_staff"}
+design:
+  components:
+    int_staff: {position: {x: 0, y: 0}}
+    select columns: {position: {x: 200, y: 0}}
+    write dim_staff: {position: {x: 400, y: 0}}

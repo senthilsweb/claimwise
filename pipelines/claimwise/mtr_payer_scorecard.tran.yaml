@@ -1,0 +1,132 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: one row per payer billing scorecard -> claimwise.gold.mtr_payer_scorecard"
+  components:
+    fct_collections:
+      type: "table-input"
+      parameters:
+        componentName: "fct_collections"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_collections"
+        columnNames: ["claim_key", "collected_amount"]
+        offsetType: "None"
+    collected_per_claim:
+      type: "aggregate"
+      sources: ["fct_collections"]
+      parameters:
+        componentName: "collected_per_claim"
+        groupings: ["claim_key"]
+        aggregations:
+          - ["collected_amount", "Sum"]
+    fct_claims:
+      type: "table-input"
+      parameters:
+        componentName: "fct_claims"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_claims"
+        columnNames: ["claim_id", "payer_key", "claim_status", "claim_amount", "denied_claim_flag"]
+        offsetType: "None"
+    join collected:
+      type: "join"
+      sources: ["fct_claims", "collected_per_claim"]
+      parameters:
+        componentName: "join collected"
+        mainTable: "fct_claims"
+        mainTableAlias: "f"
+        joins:
+          - ["collected_per_claim", "c", "Left"]
+        joinExpressions:
+          - ["`f`.`claim_id` = `c`.`claim_key`", "f_Left_c"]
+        columnMappings:
+          - ["f.claim_id", "claim_id"]
+          - ["f.payer_key", "payer_key"]
+          - ["f.claim_status", "claim_status"]
+          - ["f.claim_amount", "claim_amount"]
+          - ["f.denied_claim_flag", "denied_claim_flag"]
+          - ["c.sum_collected_amount", "collected_raw"]
+    line amounts:
+      type: "calculator"
+      sources: ["join collected"]
+      parameters:
+        componentName: "line amounts"
+        includeInputColumns: "Yes"
+        calculations:
+          - ["coalesce(`collected_raw`, 0)", "collected_amount"]
+          - ["case when `claim_status` != 'Denied' and `claim_amount` - coalesce(`collected_raw`, 0) > 0 then `claim_amount` - coalesce(`collected_raw`, 0) else 0 end", "open_ar"]
+    by payer:
+      type: "aggregate"
+      sources: ["line amounts"]
+      parameters:
+        componentName: "by payer"
+        groupings: ["payer_key"]
+        aggregations:
+          - ["claim_amount", "Sum"]
+          - ["collected_amount", "Sum"]
+          - ["claim_id", "Count"]
+          - ["denied_claim_flag", "Sum"]
+          - ["claim_amount", "Average"]
+          - ["open_ar", "Sum"]
+    dim_payer:
+      type: "table-input"
+      parameters:
+        componentName: "dim_payer"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "dim_payer"
+        columnNames: ["payer_id", "payer_name"]
+        offsetType: "None"
+    join payer:
+      type: "join"
+      sources: ["by payer", "dim_payer"]
+      parameters:
+        componentName: "join payer"
+        mainTable: "by payer"
+        mainTableAlias: "c"
+        joins:
+          - ["dim_payer", "p", "Inner"]
+        joinExpressions:
+          - ["`c`.`payer_key` = `p`.`payer_id`", "c_Inner_p"]
+        columnMappings:
+          - ["p.payer_name", "payer_name"]
+          - ["c.sum_claim_amount", "billed_amount"]
+          - ["c.sum_collected_amount", "collected_amount"]
+          - ["c.count_claim_id", "claim_count"]
+          - ["c.sum_denied_claim_flag", "denied_count"]
+          - ["c.avg_claim_amount", "avg_claim_amount"]
+          - ["c.sum_open_ar", "open_ar"]
+    scorecard:
+      type: "calculator"
+      sources: ["join payer"]
+      parameters:
+        componentName: "scorecard"
+        includeInputColumns: "No"
+        calculations:
+          - ["`payer_name`", "payer_name"]
+          - ["`billed_amount`", "billed_amount"]
+          - ["`collected_amount`", "collected_amount"]
+          - ["round(100.0 * `collected_amount` / nullif(`billed_amount`, 0), 2)", "collection_rate_pct"]
+          - ["round(100.0 * `denied_count` / nullif(`claim_count`, 0), 2)", "denial_rate_pct"]
+          - ["`open_ar`", "open_ar"]
+          - ["`claim_count`", "claim_count"]
+          - ["round(`avg_claim_amount`, 2)", "avg_claim_amount"]
+    write mtr_payer_scorecard:
+      type: "rewrite-table-dl"
+      sources: ["scorecard"]
+      parameters: {componentName: "write mtr_payer_scorecard", catalog: "claimwise", schema: "gold", table: "mtr_payer_scorecard"}
+design:
+  components:
+    fct_collections: {position: {x: 0, y: 150}}
+    collected_per_claim: {position: {x: 200, y: 150}}
+    fct_claims: {position: {x: 0, y: 0}}
+    join collected: {position: {x: 400, y: 0}}
+    line amounts: {position: {x: 600, y: 0}}
+    by payer: {position: {x: 800, y: 0}}
+    dim_payer: {position: {x: 800, y: 150}}
+    join payer: {position: {x: 1000, y: 0}}
+    scorecard: {position: {x: 1200, y: 0}}
+    write mtr_payer_scorecard: {position: {x: 1400, y: 0}}

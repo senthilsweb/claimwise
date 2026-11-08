@@ -1,0 +1,55 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: department dimension (staff departments with staff counts) -> claimwise.gold.dim_department"
+  components:
+    stg_users:
+      type: "table-input"
+      parameters:
+        componentName: "stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_users"
+        columnNames: ["id", "userType", "department"]
+        offsetType: "None"
+    staff with department:
+      type: "filter"
+      sources: ["stg_users"]
+      parameters:
+        componentName: "staff with department"
+        mode: "Basic"
+        filterConditions:
+          - ["userType", "Is", "Equal to", "STAFF"]
+          - ["department", "Not", "Null", ""]
+        combineCondition: "And"
+    count staff:
+      type: "aggregate"
+      sources: ["staff with department"]
+      parameters:
+        componentName: "count staff"
+        groupings: ["department"]
+        aggregations:
+          - ["id", "Count Distinct"]
+    select columns:
+      type: "calculator"
+      sources: ["count staff"]
+      parameters:
+        componentName: "select columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`department`", "department_id"]
+          - ["`department`", "department_name"]
+          - ["`count_distinct_id`", "staff_count"]
+    write dim_department:
+      type: "rewrite-table-dl"
+      sources: ["select columns"]
+      parameters: {componentName: "write dim_department", catalog: "claimwise", schema: "gold", table: "dim_department"}
+design:
+  components:
+    stg_users: {position: {x: 0, y: 0}}
+    staff with department: {position: {x: 200, y: 0}}
+    count staff: {position: {x: 400, y: 0}}
+    select columns: {position: {x: 600, y: 0}}
+    write dim_department: {position: {x: 800, y: 0}}

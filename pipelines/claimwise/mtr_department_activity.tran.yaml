@@ -1,0 +1,80 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold metric: encounter activity by doctor specialty -> claimwise.gold.mtr_department_activity"
+  components:
+    fct_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "fct_encounters"
+        catalog: "claimwise"
+        schema: "gold"
+        targetTable: "fct_encounters"
+        columnNames: ["encounter_id", "patient_key", "doctor_key", "duration_minutes", "emergency_visit_flag"]
+        offsetType: "None"
+    int_doctors:
+      type: "table-input"
+      parameters:
+        componentName: "int_doctors"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_doctors"
+        columnNames: ["doctor_id", "specialty"]
+        offsetType: "None"
+    join doctors:
+      type: "join"
+      sources: ["fct_encounters", "int_doctors"]
+      parameters:
+        componentName: "join doctors"
+        mainTable: "fct_encounters"
+        mainTableAlias: "e"
+        joins:
+          - ["int_doctors", "d", "Inner"]
+        joinExpressions:
+          - ["`e`.`doctor_key` = `d`.`doctor_id`", "e_Inner_d"]
+        columnMappings:
+          - ["d.specialty", "specialty"]
+          - ["e.encounter_id", "encounter_id"]
+          - ["e.patient_key", "patient_key"]
+          - ["e.doctor_key", "doctor_key"]
+          - ["e.duration_minutes", "duration_minutes"]
+          - ["e.emergency_visit_flag", "emergency_visit_flag"]
+    by specialty:
+      type: "aggregate"
+      sources: ["join doctors"]
+      parameters:
+        componentName: "by specialty"
+        groupings: ["specialty"]
+        aggregations:
+          - ["encounter_id", "Count"]
+          - ["patient_key", "Count Distinct"]
+          - ["doctor_key", "Count Distinct"]
+          - ["duration_minutes", "Average"]
+          - ["emergency_visit_flag", "Sum"]
+    activity metrics:
+      type: "calculator"
+      sources: ["by specialty"]
+      parameters:
+        componentName: "activity metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`specialty`", "specialty"]
+          - ["`count_encounter_id`", "encounter_count"]
+          - ["`count_distinct_patient_key`", "unique_patients"]
+          - ["`count_distinct_doctor_key`", "active_doctors"]
+          - ["round(`avg_duration_minutes`, 1)", "avg_duration_minutes"]
+          - ["`sum_emergency_visit_flag`", "emergency_visits"]
+    write mtr_department_activity:
+      type: "rewrite-table-dl"
+      sources: ["activity metrics"]
+      parameters: {componentName: "write mtr_department_activity", catalog: "claimwise", schema: "gold", table: "mtr_department_activity"}
+design:
+  components:
+    fct_encounters: {position: {x: 0, y: 0}}
+    int_doctors: {position: {x: 0, y: 150}}
+    join doctors: {position: {x: 200, y: 0}}
+    by specialty: {position: {x: 400, y: 0}}
+    activity metrics: {position: {x: 600, y: 0}}
+    write mtr_department_activity: {position: {x: 800, y: 0}}

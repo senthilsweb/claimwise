@@ -1,0 +1,88 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Gold: claim fact with patient and payer context -> claimwise.gold.fct_claims"
+  components:
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["id", "claimID", "dateCreated", "patientID", "payerID", "status", "amount"]
+        offsetType: "None"
+    int_patients:
+      type: "table-input"
+      parameters:
+        componentName: "int_patients"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_patients"
+        columnNames: ["patient_id", "total_encounters"]
+        offsetType: "None"
+    int_payers:
+      type: "table-input"
+      parameters:
+        componentName: "int_payers"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "int_payers"
+        columnNames: ["payer_id", "total_claims_received"]
+        offsetType: "None"
+    join context:
+      type: "join"
+      sources: ["stg_claims", "int_patients", "int_payers"]
+      parameters:
+        componentName: "join context"
+        mainTable: "stg_claims"
+        mainTableAlias: "c"
+        joins:
+          - ["int_patients", "p", "Left"]
+          - ["int_payers", "py", "Left"]
+        joinExpressions:
+          - ["`c`.`patientID` = `p`.`patient_id`", "c_Left_p"]
+          - ["`c`.`payerID` = `py`.`payer_id`", "c_Left_py"]
+        columnMappings:
+          - ["c.id", "claim_id"]
+          - ["c.claimID", "claim_code"]
+          - ["c.dateCreated", "claim_date"]
+          - ["c.patientID", "patient_key"]
+          - ["c.payerID", "payer_key"]
+          - ["c.status", "claim_status"]
+          - ["c.amount", "claim_amount"]
+          - ["p.total_encounters", "patient_total_encounters"]
+          - ["py.total_claims_received", "payer_total_claims"]
+    metrics:
+      type: "calculator"
+      sources: ["join context"]
+      parameters:
+        componentName: "metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`claim_id`", "claim_id"]
+          - ["`claim_code`", "claim_code"]
+          - ["`claim_date`", "claim_date"]
+          - ["`patient_key`", "patient_key"]
+          - ["`payer_key`", "payer_key"]
+          - ["`claim_status`", "claim_status"]
+          - ["`claim_amount`", "claim_amount"]
+          - ["1", "claim_count"]
+          - ["case when `claim_status` = 'Approved' then 1 else 0 end", "approved_claim_flag"]
+          - ["case when `claim_status` = 'Denied' then 1 else 0 end", "denied_claim_flag"]
+          - ["`patient_total_encounters`", "patient_total_encounters"]
+          - ["`payer_total_claims`", "payer_total_claims"]
+    write fct_claims:
+      type: "rewrite-table-dl"
+      sources: ["metrics"]
+      parameters: {componentName: "write fct_claims", catalog: "claimwise", schema: "gold", table: "fct_claims"}
+design:
+  components:
+    stg_claims: {position: {x: 0, y: 0}}
+    int_patients: {position: {x: 0, y: 150}}
+    int_payers: {position: {x: 0, y: 300}}
+    join context: {position: {x: 200, y: 150}}
+    metrics: {position: {x: 400, y: 150}}
+    write fct_claims: {position: {x: 600, y: 150}}
