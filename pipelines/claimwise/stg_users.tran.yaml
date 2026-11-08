@@ -1,0 +1,30 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver staging: claimwise.bronze.users -> claimwise.silver.stg_users (camelCase preserved)"
+  components:
+    bronze users:
+      type: "table-input"
+      parameters:
+        componentName: "bronze users"
+        catalog: "claimwise"
+        schema: "bronze"
+        targetTable: "users"
+        columnNames: ["id", "userID", "userType", "name", "dateOfBirth", "contactInfo", "specialty", "department", "role"]
+        offsetType: "None"
+    write stg_users:
+      type: "rewrite-table-dl"
+      sources: ["bronze users"]
+      parameters:
+        componentName: "write stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "stg_users"
+design:
+  components:
+    bronze users:
+      position: {x: 0, y: 0}
+    write stg_users:
+      position: {x: 200, y: 0}

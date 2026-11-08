@@ -1,0 +1,131 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver intermediate: patients with encounter and claim aggregates -> claimwise.silver.int_patients"
+  components:
+    stg_users:
+      type: "table-input"
+      parameters:
+        componentName: "stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_users"
+        columnNames: ["id", "userID", "userType", "name", "dateOfBirth", "contactInfo"]
+        offsetType: "None"
+    patients only:
+      type: "filter"
+      sources: ["stg_users"]
+      parameters:
+        componentName: "patients only"
+        mode: "Basic"
+        filterConditions:
+          - ["userType", "Is", "Equal to", "PATIENT"]
+        combineCondition: "And"
+    stg_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "stg_encounters"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_encounters"
+        columnNames: ["id", "patientID", "date"]
+        offsetType: "None"
+    patient_encounters:
+      type: "aggregate"
+      sources: ["stg_encounters"]
+      parameters:
+        componentName: "patient_encounters"
+        groupings: ["patientID"]
+        aggregations:
+          - ["id", "Count"]
+          - ["date", "Max"]
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["id", "patientID", "amount", "dateCreated"]
+        offsetType: "None"
+    patient_claims:
+      type: "aggregate"
+      sources: ["stg_claims"]
+      parameters:
+        componentName: "patient_claims"
+        groupings: ["patientID"]
+        aggregations:
+          - ["id", "Count"]
+          - ["amount", "Sum"]
+          - ["dateCreated", "Max"]
+    join patient metrics:
+      type: "join"
+      sources: ["patients only", "patient_encounters", "patient_claims"]
+      parameters:
+        componentName: "join patient metrics"
+        mainTable: "patients only"
+        mainTableAlias: "s"
+        joins:
+          - ["patient_encounters", "pe", "Left"]
+          - ["patient_claims", "pc", "Left"]
+        joinExpressions:
+          - ["`s`.`id` = `pe`.`patientID`", "s_Left_pe"]
+          - ["`s`.`id` = `pc`.`patientID`", "s_Left_pc"]
+        columnMappings:
+          - ["s.id", "patient_id"]
+          - ["s.userID", "patient_code"]
+          - ["s.name", "patient_name"]
+          - ["s.dateOfBirth", "dateOfBirth"]
+          - ["s.contactInfo", "contactInfo"]
+          - ["pe.count_id", "total_encounters"]
+          - ["pe.max_date", "last_encounter_date"]
+          - ["pc.count_id", "total_claims"]
+          - ["pc.sum_amount", "total_claims_amount"]
+          - ["pc.max_dateCreated", "last_claim_date"]
+    coalesce metrics:
+      type: "calculator"
+      sources: ["join patient metrics"]
+      parameters:
+        componentName: "coalesce metrics"
+        includeInputColumns: "No"
+        calculations:
+          - ["`patient_id`", "patient_id"]
+          - ["`patient_code`", "patient_code"]
+          - ["`patient_name`", "patient_name"]
+          - ["`dateOfBirth`", "dateOfBirth"]
+          - ["`contactInfo`", "contactInfo"]
+          - ["coalesce(`total_encounters`, 0)", "total_encounters"]
+          - ["`last_encounter_date`", "last_encounter_date"]
+          - ["coalesce(`total_claims`, 0)", "total_claims"]
+          - ["coalesce(`total_claims_amount`, 0)", "total_claims_amount"]
+          - ["`last_claim_date`", "last_claim_date"]
+    write int_patients:
+      type: "rewrite-table-dl"
+      sources: ["coalesce metrics"]
+      parameters:
+        componentName: "write int_patients"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "int_patients"
+design:
+  components:
+    stg_users:
+      position: {x: 0, y: 0}
+    patients only:
+      position: {x: 200, y: 0}
+    stg_encounters:
+      position: {x: 0, y: 150}
+    patient_encounters:
+      position: {x: 200, y: 150}
+    stg_claims:
+      position: {x: 0, y: 300}
+    patient_claims:
+      position: {x: 200, y: 300}
+    join patient metrics:
+      position: {x: 400, y: 150}
+    coalesce metrics:
+      position: {x: 600, y: 150}
+    write int_patients:
+      position: {x: 800, y: 150}

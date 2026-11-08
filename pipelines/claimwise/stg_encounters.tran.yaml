@@ -1,0 +1,30 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver staging: claimwise.bronze.encounters -> claimwise.silver.stg_encounters"
+  components:
+    bronze encounters:
+      type: "table-input"
+      parameters:
+        componentName: "bronze encounters"
+        catalog: "claimwise"
+        schema: "bronze"
+        targetTable: "encounters"
+        columnNames: ["id", "encounterID", "patientID", "doctorID", "facilityID", "date", "type", "duration", "notes"]
+        offsetType: "None"
+    write stg_encounters:
+      type: "rewrite-table-dl"
+      sources: ["bronze encounters"]
+      parameters:
+        componentName: "write stg_encounters"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "stg_encounters"
+design:
+  components:
+    bronze encounters:
+      position: {x: 0, y: 0}
+    write stg_encounters:
+      position: {x: 200, y: 0}

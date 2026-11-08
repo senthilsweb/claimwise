@@ -1,0 +1,115 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver intermediate: doctors with encounter and facility aggregates -> claimwise.silver.int_doctors. SQL component used only for array_join(collect_set()) list aggregation, which Aggregate does not offer."
+  components:
+    stg_users:
+      type: "table-input"
+      parameters:
+        componentName: "stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_users"
+        columnNames: ["id", "userID", "userType", "name", "specialty", "contactInfo"]
+        offsetType: "None"
+    doctors only:
+      type: "filter"
+      sources: ["stg_users"]
+      parameters:
+        componentName: "doctors only"
+        mode: "Basic"
+        filterConditions:
+          - ["userType", "Is", "Equal to", "DOCTOR"]
+        combineCondition: "And"
+    stg_encounters:
+      type: "table-input"
+      parameters:
+        componentName: "stg_encounters"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_encounters"
+        columnNames: ["id", "doctorID", "patientID", "facilityID", "date"]
+        offsetType: "None"
+    doctor_encounters:
+      type: "aggregate"
+      sources: ["stg_encounters"]
+      parameters:
+        componentName: "doctor_encounters"
+        groupings: ["doctorID"]
+        aggregations:
+          - ["id", "Count"]
+          - ["patientID", "Count Distinct"]
+          - ["date", "Max"]
+    stg_facilities:
+      type: "table-input"
+      parameters:
+        componentName: "stg_facilities"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_facilities"
+        columnNames: ["id", "name"]
+        offsetType: "None"
+    doctor_facilities:
+      type: "sql"
+      sources: ["stg_encounters", "stg_facilities"]
+      parameters:
+        componentName: "doctor_facilities"
+        query: |
+          select e.doctorID,
+                 count(distinct e.facilityID) as facilities_practiced_in,
+                 array_join(collect_set(f.name), ', ') as facility_names
+          from $T{stg_encounters} e
+          join $T{stg_facilities} f on e.facilityID = f.id
+          group by e.doctorID
+    join doctor metrics:
+      type: "join"
+      sources: ["doctors only", "doctor_encounters", "doctor_facilities"]
+      parameters:
+        componentName: "join doctor metrics"
+        mainTable: "doctors only"
+        mainTableAlias: "s"
+        joins:
+          - ["doctor_encounters", "de", "Left"]
+          - ["doctor_facilities", "df", "Left"]
+        joinExpressions:
+          - ["`s`.`id` = `de`.`doctorID`", "s_Left_de"]
+          - ["`s`.`id` = `df`.`doctorID`", "s_Left_df"]
+        columnMappings:
+          - ["s.id", "doctor_id"]
+          - ["s.userID", "doctor_code"]
+          - ["s.name", "doctor_name"]
+          - ["s.specialty", "specialty"]
+          - ["s.contactInfo", "contactInfo"]
+          - ["de.count_id", "total_patients_seen"]
+          - ["de.count_distinct_patientID", "unique_patients_seen"]
+          - ["de.max_date", "last_encounter_date"]
+          - ["df.facilities_practiced_in", "facilities_practiced_in"]
+          - ["df.facility_names", "facility_names"]
+    write int_doctors:
+      type: "rewrite-table-dl"
+      sources: ["join doctor metrics"]
+      parameters:
+        componentName: "write int_doctors"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "int_doctors"
+design:
+  components:
+    stg_users:
+      position: {x: 0, y: 0}
+    doctors only:
+      position: {x: 200, y: 0}
+    stg_encounters:
+      position: {x: 0, y: 150}
+    doctor_encounters:
+      position: {x: 200, y: 150}
+    stg_facilities:
+      position: {x: 0, y: 300}
+    doctor_facilities:
+      position: {x: 200, y: 300}
+    join doctor metrics:
+      position: {x: 400, y: 150}
+    write int_doctors:
+      position: {x: 600, y: 150}

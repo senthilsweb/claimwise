@@ -1,0 +1,115 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver intermediate: payers with claim and health-plan aggregates -> claimwise.silver.int_payers. SQL component used only for array_join(collect_set()) list aggregation."
+  components:
+    stg_users:
+      type: "table-input"
+      parameters:
+        componentName: "stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_users"
+        columnNames: ["id", "userID", "userType", "name", "contactInfo"]
+        offsetType: "None"
+    payers only:
+      type: "filter"
+      sources: ["stg_users"]
+      parameters:
+        componentName: "payers only"
+        mode: "Basic"
+        filterConditions:
+          - ["userType", "Is", "Equal to", "PAYER"]
+        combineCondition: "And"
+    stg_claims:
+      type: "table-input"
+      parameters:
+        componentName: "stg_claims"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_claims"
+        columnNames: ["id", "payerID", "patientID", "amount"]
+        offsetType: "None"
+    payer_claims:
+      type: "aggregate"
+      sources: ["stg_claims"]
+      parameters:
+        componentName: "payer_claims"
+        groupings: ["payerID"]
+        aggregations:
+          - ["id", "Count"]
+          - ["amount", "Sum"]
+          - ["amount", "Average"]
+          - ["patientID", "Count Distinct"]
+    stg_health_plans:
+      type: "table-input"
+      parameters:
+        componentName: "stg_health_plans"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_health_plans"
+        columnNames: ["id", "payerID", "planName"]
+        offsetType: "None"
+    payer_health_plans:
+      type: "sql"
+      sources: ["stg_health_plans"]
+      parameters:
+        componentName: "payer_health_plans"
+        query: |
+          select payerID,
+                 count(*) as total_health_plans,
+                 array_join(collect_set(planName), ', ') as plan_names
+          from $T{stg_health_plans}
+          group by payerID
+    join payer metrics:
+      type: "join"
+      sources: ["payers only", "payer_claims", "payer_health_plans"]
+      parameters:
+        componentName: "join payer metrics"
+        mainTable: "payers only"
+        mainTableAlias: "s"
+        joins:
+          - ["payer_claims", "pc", "Left"]
+          - ["payer_health_plans", "hp", "Left"]
+        joinExpressions:
+          - ["`s`.`id` = `pc`.`payerID`", "s_Left_pc"]
+          - ["`s`.`id` = `hp`.`payerID`", "s_Left_hp"]
+        columnMappings:
+          - ["s.id", "payer_id"]
+          - ["s.userID", "payer_code"]
+          - ["s.name", "payer_name"]
+          - ["s.contactInfo", "contactInfo"]
+          - ["pc.count_id", "total_claims_received"]
+          - ["pc.sum_amount", "total_claims_amount"]
+          - ["pc.avg_amount", "avg_claim_amount"]
+          - ["pc.count_distinct_patientID", "unique_patients"]
+          - ["hp.total_health_plans", "total_health_plans"]
+          - ["hp.plan_names", "plan_names"]
+    write int_payers:
+      type: "rewrite-table-dl"
+      sources: ["join payer metrics"]
+      parameters:
+        componentName: "write int_payers"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "int_payers"
+design:
+  components:
+    stg_users:
+      position: {x: 0, y: 0}
+    payers only:
+      position: {x: 200, y: 0}
+    stg_claims:
+      position: {x: 0, y: 150}
+    payer_claims:
+      position: {x: 200, y: 150}
+    stg_health_plans:
+      position: {x: 0, y: 300}
+    payer_health_plans:
+      position: {x: 200, y: 300}
+    join payer metrics:
+      position: {x: 400, y: 150}
+    write int_payers:
+      position: {x: 600, y: 150}

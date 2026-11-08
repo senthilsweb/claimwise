@@ -1,0 +1,56 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver intermediate: staff users -> claimwise.silver.int_staff"
+  components:
+    stg_users:
+      type: "table-input"
+      parameters:
+        componentName: "stg_users"
+        catalog: "claimwise"
+        schema: "silver"
+        targetTable: "stg_users"
+        columnNames: ["id", "userID", "userType", "name", "department", "role", "contactInfo"]
+        offsetType: "None"
+    staff only:
+      type: "filter"
+      sources: ["stg_users"]
+      parameters:
+        componentName: "staff only"
+        mode: "Basic"
+        filterConditions:
+          - ["userType", "Is", "Equal to", "STAFF"]
+        combineCondition: "And"
+    rename columns:
+      type: "calculator"
+      sources: ["staff only"]
+      parameters:
+        componentName: "rename columns"
+        includeInputColumns: "No"
+        calculations:
+          - ["`id`", "staff_id"]
+          - ["`userID`", "staff_code"]
+          - ["`name`", "staff_name"]
+          - ["`department`", "department"]
+          - ["`role`", "role"]
+          - ["`contactInfo`", "contactInfo"]
+    write int_staff:
+      type: "rewrite-table-dl"
+      sources: ["rename columns"]
+      parameters:
+        componentName: "write int_staff"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "int_staff"
+design:
+  components:
+    stg_users:
+      position: {x: 0, y: 0}
+    staff only:
+      position: {x: 200, y: 0}
+    rename columns:
+      position: {x: 400, y: 0}
+    write int_staff:
+      position: {x: 600, y: 0}

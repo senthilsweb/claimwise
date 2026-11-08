@@ -1,0 +1,143 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver layer: stg_* in parallel, then int_* in parallel, then data quality checks. Fails fast."
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+          - "stg_users"
+          - "stg_facilities"
+          - "stg_encounters"
+          - "stg_health_plans"
+          - "stg_claims"
+          - "stg_activities"
+          - "stg_collections"
+      parameters:
+        componentName: "Start"
+    stg_users:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_users", transformationJob: "pipelines/claimwise/stg_users.tran.yaml"}
+    stg_facilities:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_facilities", transformationJob: "pipelines/claimwise/stg_facilities.tran.yaml"}
+    stg_encounters:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_encounters", transformationJob: "pipelines/claimwise/stg_encounters.tran.yaml"}
+    stg_health_plans:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_health_plans", transformationJob: "pipelines/claimwise/stg_health_plans.tran.yaml"}
+    stg_claims:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_claims", transformationJob: "pipelines/claimwise/stg_claims.tran.yaml"}
+    stg_activities:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_activities", transformationJob: "pipelines/claimwise/stg_activities.tran.yaml"}
+    stg_collections:
+      type: "run-transformation"
+      transitions: {success: ["stg done"]}
+      parameters: {componentName: "stg_collections", transformationJob: "pipelines/claimwise/stg_collections.tran.yaml"}
+    stg done:
+      type: "and"
+      transitions:
+        success: ["int_patients", "int_doctors", "int_staff", "int_payers"]
+      parameters:
+        componentName: "stg done"
+    int_patients:
+      type: "run-transformation"
+      transitions: {success: ["int done"]}
+      parameters: {componentName: "int_patients", transformationJob: "pipelines/claimwise/int_patients.tran.yaml"}
+    int_doctors:
+      type: "run-transformation"
+      transitions: {success: ["int done"]}
+      parameters: {componentName: "int_doctors", transformationJob: "pipelines/claimwise/int_doctors.tran.yaml"}
+    int_staff:
+      type: "run-transformation"
+      transitions: {success: ["int done"]}
+      parameters: {componentName: "int_staff", transformationJob: "pipelines/claimwise/int_staff.tran.yaml"}
+    int_payers:
+      type: "run-transformation"
+      transitions: {success: ["int done"]}
+      parameters: {componentName: "int_payers", transformationJob: "pipelines/claimwise/int_payers.tran.yaml"}
+    int done:
+      type: "and"
+      transitions:
+        success: ["DQ silver checks"]
+      parameters:
+        componentName: "int done"
+    DQ silver checks:
+      type: "query-to-scalar"
+      transitions:
+        success: ["Assert silver DQ"]
+      parameters:
+        componentName: "DQ silver checks"
+        mode: "Advanced"
+        query: |
+          select cast(
+            (select count(*) - count(distinct id) + count_if(id is null) + count_if(userID is null) + (count(userID) - count(distinct userID)) + count_if(userType is null or userType not in ('PATIENT','DOCTOR','STAFF','PAYER')) from claimwise.silver.stg_users)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(claimID is null) + (count(claimID) - count(distinct claimID)) + count_if(amount is null) + count_if(status is null or status not in ('Submitted','In Review','Approved','Denied','Appealed')) from claimwise.silver.stg_claims)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(collectionID is null) + (count(collectionID) - count(distinct collectionID)) + count_if(methodOfCollection not in ('Cash','Credit Card','Bank Transfer','Check','Electronic Payment')) + count_if(status not in ('Processed','Pending','Completed','Failed')) from claimwise.silver.stg_collections)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(encounterID is null) + (count(encounterID) - count(distinct encounterID)) + count_if(type not in ('Initial Visit','Follow-up','Emergency','Routine Checkup','Specialist Consultation')) from claimwise.silver.stg_encounters)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(activityID is null) + (count(activityID) - count(distinct activityID)) + count_if(activityType not in ('Submission','Review','Documentation Request','Appeal','Payment Processing')) from claimwise.silver.stg_activities)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(facilityID is null) + (count(facilityID) - count(distinct facilityID)) from claimwise.silver.stg_facilities)
+          + (select count(*) - count(distinct id) + count_if(id is null) + count_if(healthPlanID is null) + (count(healthPlanID) - count(distinct healthPlanID)) from claimwise.silver.stg_health_plans)
+          as int) as dq_failures
+        scalarVariableMapping:
+          - ["dq_failures", "dq_failures"]
+    Assert silver DQ:
+      type: "assert-scalar-variables"
+      parameters:
+        componentName: "Assert silver DQ"
+        assertions:
+          - ["dq_failures", "0"]
+  variables:
+    dq_failures:
+      metadata:
+        type: "NUMBER"
+        description: "Total silver data-quality violations (must be 0)"
+        scope: "SHARED"
+        visibility: "PRIVATE"
+      defaultValue: "-1"
+design:
+  components:
+    Start:
+      position: {x: 0, y: 300}
+    stg_users:
+      position: {x: 200, y: 0}
+    stg_facilities:
+      position: {x: 200, y: 100}
+    stg_encounters:
+      position: {x: 200, y: 200}
+    stg_health_plans:
+      position: {x: 200, y: 300}
+    stg_claims:
+      position: {x: 200, y: 400}
+    stg_activities:
+      position: {x: 200, y: 500}
+    stg_collections:
+      position: {x: 200, y: 600}
+    stg done:
+      position: {x: 400, y: 300}
+    int_patients:
+      position: {x: 600, y: 150}
+    int_doctors:
+      position: {x: 600, y: 250}
+    int_staff:
+      position: {x: 600, y: 350}
+    int_payers:
+      position: {x: 600, y: 450}
+    int done:
+      position: {x: 800, y: 300}
+    DQ silver checks:
+      position: {x: 1000, y: 300}
+    Assert silver DQ:
+      position: {x: 1200, y: 300}

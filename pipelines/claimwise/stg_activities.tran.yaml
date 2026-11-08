@@ -1,0 +1,30 @@
+type: "transformation"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Silver staging: claimwise.bronze.activities -> claimwise.silver.stg_activities"
+  components:
+    bronze activities:
+      type: "table-input"
+      parameters:
+        componentName: "bronze activities"
+        catalog: "claimwise"
+        schema: "bronze"
+        targetTable: "activities"
+        columnNames: ["id", "activityID", "claimID", "activityDate", "activityType", "diagnosisCode", "procedureCode", "notes"]
+        offsetType: "None"
+    write stg_activities:
+      type: "rewrite-table-dl"
+      sources: ["bronze activities"]
+      parameters:
+        componentName: "write stg_activities"
+        catalog: "claimwise"
+        schema: "silver"
+        table: "stg_activities"
+design:
+  components:
+    bronze activities:
+      position: {x: 0, y: 0}
+    write stg_activities:
+      position: {x: 200, y: 0}
