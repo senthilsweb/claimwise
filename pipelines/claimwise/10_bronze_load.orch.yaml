@@ -1,0 +1,140 @@
+type: "orchestration"
+version: "1.0"
+pipeline:
+  metadata:
+    origin: "maia-01a1bbb1-065a-774d-b461-265233574462"
+    description: "Bronze: load each landed CSV from /Volumes/claimwise/landing/raw 1:1 into typed Delta tables in claimwise.bronze. Full reload, idempotent."
+  components:
+    Start:
+      type: "start"
+      transitions:
+        unconditional:
+          - "load users"
+          - "load facilities"
+          - "load encounters"
+          - "load health_plans"
+          - "load claims"
+          - "load activities"
+          - "load collections"
+      parameters:
+        componentName: "Start"
+    load users:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load users"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.users COMMENT 'All system actors: patients, doctors, staff, payers (source: Patient Management, MSSQL)' AS
+          SELECT CAST(id AS INT) AS id, userID, userType, name, CAST(dateOfBirth AS DATE) AS dateOfBirth,
+                 contactInfo, specialty, department, role
+          FROM read_files('/Volumes/claimwise/landing/raw/users/', format => 'csv', header => true, inferColumnTypes => false);
+    load facilities:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load facilities"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.facilities COMMENT 'Healthcare facilities (source: Patient Management, MSSQL)' AS
+          SELECT CAST(id AS INT) AS id, facilityID, name, location, contactInfo
+          FROM read_files('/Volumes/claimwise/landing/raw/facilities/', format => 'csv', header => true, inferColumnTypes => false);
+    load encounters:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load encounters"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.encounters COMMENT 'Patient encounters / visits (source: Patient Management, MSSQL)' AS
+          SELECT CAST(id AS INT) AS id, encounterID, CAST(patientID AS INT) AS patientID, CAST(doctorID AS INT) AS doctorID,
+                 CAST(facilityID AS INT) AS facilityID, CAST(date AS DATE) AS date, type, CAST(duration AS INT) AS duration, notes
+          FROM read_files('/Volumes/claimwise/landing/raw/encounters/', format => 'csv', header => true, inferColumnTypes => false);
+    load health_plans:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load health_plans"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.health_plans COMMENT 'Insurance plans offered by payers (source: Claims Processing, Oracle)' AS
+          SELECT CAST(id AS INT) AS id, healthPlanID, planName, CAST(payerID AS INT) AS payerID
+          FROM read_files('/Volumes/claimwise/landing/raw/health_plans/', format => 'csv', header => true, inferColumnTypes => false);
+    load claims:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load claims"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.claims COMMENT 'Medical claims and their lifecycle status (source: Claims Processing, Oracle)' AS
+          SELECT CAST(id AS INT) AS id, claimID, CAST(patientID AS INT) AS patientID, CAST(payerID AS INT) AS payerID, status,
+                 CAST(dateCreated AS DATE) AS dateCreated, CAST(dateUpdated AS DATE) AS dateUpdated, CAST(amount AS DOUBLE) AS amount
+          FROM read_files('/Volumes/claimwise/landing/raw/claims/', format => 'csv', header => true, inferColumnTypes => false);
+    load activities:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load activities"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.activities COMMENT 'Claim lifecycle activities and events (source: Claims Processing, Oracle)' AS
+          SELECT CAST(id AS INT) AS id, activityID, CAST(claimID AS INT) AS claimID, CAST(activityDate AS DATE) AS activityDate,
+                 activityType, diagnosisCode, procedureCode, notes
+          FROM read_files('/Volumes/claimwise/landing/raw/activities/', format => 'csv', header => true, inferColumnTypes => false);
+    load collections:
+      type: "sql-executor"
+      transitions:
+        success:
+          - "All Loaded"
+      parameters:
+        componentName: "load collections"
+        scriptLocation: "Component"
+        declareSqlVariables: "Include selected"
+        sqlScript: |
+          CREATE OR REPLACE TABLE claimwise.bronze.collections COMMENT 'Payment collections against claims (source: Claims Processing, Oracle)' AS
+          SELECT CAST(id AS INT) AS id, collectionID, CAST(claimID AS INT) AS claimID, CAST(date AS DATE) AS date,
+                 methodOfCollection, CAST(amountCollected AS DOUBLE) AS amountCollected, status
+          FROM read_files('/Volumes/claimwise/landing/raw/collections/', format => 'csv', header => true, inferColumnTypes => false)
+    All Loaded:
+      type: "and"
+      parameters:
+        componentName: "All Loaded"
+design:
+  components:
+    Start:
+      position: {x: 0, y: 300}
+    load users:
+      position: {x: 200, y: 0}
+    load facilities:
+      position: {x: 200, y: 100}
+    load encounters:
+      position: {x: 200, y: 200}
+    load health_plans:
+      position: {x: 200, y: 300}
+    load claims:
+      position: {x: 200, y: 400}
+    load activities:
+      position: {x: 200, y: 500}
+    load collections:
+      position: {x: 200, y: 600}
+    All Loaded:
+      position: {x: 400, y: 300}
