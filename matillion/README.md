@@ -10,6 +10,7 @@ Everything needed to stand the Claimwise pipelines up again on Matillion (Maia F
 | `scripts/dbx.py` | Databricks REST helper: `sql`, `sqlfile`, `put` (no CLI install needed) |
 | `scripts/mcp_call.py` | Drive the Matillion MCP server (`@matillion/mcp-server`) from the CLI: `tools`, `describe`, `call` |
 | `scripts/dpc_api.py` | Direct Maia Public API calls (OAuth client credentials from the repo-root `.env`, region `us1`) |
+| `scripts/publish_run.py` | Publish the current branch as an artifact to an environment and run the daily pipeline |
 | `scripts/maia_task.py`, `scripts/maia_watch.py` | Create and monitor a Maia data-engineer task; `maia_watch.py` auto-approves non-destructive tool calls |
 | `sql/00_init.sql` | Catalog, schemas `landing/bronze/silver/gold`, volume `landing.raw` |
 | `sql/10_bronze_load.sql` | Typed `CREATE OR REPLACE TABLE ... AS SELECT ... FROM read_files(volume)`; the same statements run inside `10_bronze_load` |
@@ -33,7 +34,7 @@ Everything needed to stand the Claimwise pipelines up again on Matillion (Maia F
 ## Running the daily pipeline
 
 - **Designer:** switch to the branch, open `pipelines/claimwise/00_claimwise_daily.orch.yaml`, Run.
-- **API:** publish the branch as an artifact (`POST /v1/projects/{id}/artifacts`, multipart of the pipeline files, headers `branch`, `commitHash`, `versionName`, `environmentName`) then `POST /v1/projects/{id}/pipeline-executions` with `pipelineName` and `environmentName`. `scripts/dpc_api.py` makes the JSON calls.
+- **API:** `python3 matillion/scripts/publish_run.py <versionName> dev` publishes the current branch and commit as an artifact (multipart `POST /v1/projects/{id}/artifacts` with headers `branch`, `commitHash`, `versionName`, `environmentName`), then executes `00_claimwise_daily` against that version and polls it. Version `1.0.0` was published from `feature/claimwise-matillion` on 2026-11-08 and ran green in about 65 seconds.
 - **Verify:** `python3 scripts/dbx.py sqlfile sql/90_verify.sql`.
 
 ## Re-running the scaffold
